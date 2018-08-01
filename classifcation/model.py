@@ -28,5 +28,5 @@ class CNN_model:
         pass
 
 
-    def train_model:
+    def train_model(self):
         raise NotImplementedError
