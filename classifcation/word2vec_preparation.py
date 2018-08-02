@@ -29,9 +29,11 @@ class w2v_model:
         target = '%s/%s/w2v_embedding' % (IO_DIR, self.domain_name)
         workers = multiprocessing.cpu_count()
         sg = True
-        sentences = Sentences(source, size=self.vec_size, )
-        model = Word2Vec()
-        print("model is saved: $s")
+        sentences = Sentences(source)
+        model = Word2Vec(sentences, ize=self.vec_size, window=self.window,
+                         min_count=self.min_count, verbose=self.verbose,
+                         workers=workers, sg=sg)
+        print("model is saved: $s" % (target))
 
 
     def read_data(self):
