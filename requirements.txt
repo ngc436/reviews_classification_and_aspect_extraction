@@ -6,3 +6,4 @@ nltk==3.3
 pymystem3==0.2.0
 pandas==0.23.3
 numpy==1.15.0
+plotly==3.1.0

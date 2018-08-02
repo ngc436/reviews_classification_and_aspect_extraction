@@ -60,4 +60,17 @@ def text_len(text):
     return len(text)
 
 
-def batch_iterator(data, size, num_epochs, shuffle=True):
+def batch_iterator(data, batch_size, num_epoch, shuffle=True):
+    data = np.array(data)
+    data_size = len(data)
+    batches_per_epoch = int((len(data) - 1) / batch_size) + 1
+    for epoch in range(num_epoch):
+        if shuffle:
+            shuffle_indicis = np.random.permutation(np.arange(data_size))
+            shuffled_data = data[shuffle_indicis]
+        else:
+            shuffled_data = data
+        for i in range(batches_per_epoch):
+            start = i * batch_size
+            end = min((i + 1) * batch_size, data_size)
+            yield shuffled_data[start:end]
