@@ -2,6 +2,11 @@ from gensim.models import Word2Vec
 import codecs
 import multiprocessing
 
+# TODO: implement logging
+import logging
+
+import numpy as np
+
 IO_DIR = 'data_dir'
 
 
@@ -19,6 +24,9 @@ class w2v_model:
 
     def __init__(self):
         self.model = None
+        self.embeddings = {}
+        self.vector_size = None
+        self.matrix = None
 
     def create_model(self, domain_name, vec_size=300, window=7, min_count=2):
         source = '%s/%s/train.csv' % (IO_DIR, domain_name)
@@ -30,5 +38,20 @@ class w2v_model:
         self.model.save(target)
         print("model is saved: %s" % (target))
 
-    def read_data(self):
-        raise NotImplementedError
+    # TODO: fix embedding dim
+    def read_data(self, domain_name):
+        matrix = []
+        target = '%s/%s/w2v_embedding' % (IO_DIR, domain_name)
+        if not self.model:
+            self.model = Word2Vec.load(target)
+        for word in self.model.vocab:
+            self.embeddings[word] = list(self.model[word])
+            matrix.append(list(self.model[word]))
+        self.vector_size = len(self.embeddings)
+        self.matrix = np.asarray(matrix)
+
+    def get_word_embedding(self, word):
+        try:
+            return self.embeddings[word]
+        except KeyError:
+            return None
