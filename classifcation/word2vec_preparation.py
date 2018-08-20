@@ -20,6 +20,32 @@ class Sentences(object):
             yield line.split()
 
 
+def vocab_creation(domain_name, maximum_len=0, vocab_size=0):
+    try:
+        source = '%s/%s/train.csv' % (IO_DIR, domain_name)
+    except:
+        print("Domain %s doesn't exist" % (domain_name))
+    print('Vocabulary initialization')
+    total, unique = 0, 0
+    word_freqs = {}
+    top = 0
+
+    text = codecs.open(source, 'r', 'utf-8')
+    for line in text:
+        words = line.split()
+        if maximum_len > 0 and len(words) > maximum_len:
+            continue
+
+        for word in words:
+            # flag = bool()
+            try:
+                word_freqs[word] += 1
+            except KeyError:
+                unique += 1
+                word_freqs[word] = 1
+            total += 1
+
+
 class w2v_model:
 
     def __init__(self):
@@ -27,9 +53,7 @@ class w2v_model:
         self.embeddings = {}
         self.vector_size = None
         self.matrix = None
-
-    def create_vocab(self,max_len=0,vocab_size=0):
-        pass
+        self.vocab = vocab_creation('amazon')
 
     def create_model(self, domain_name, vec_size=300, window=7, min_count=2):
 
@@ -48,8 +72,9 @@ class w2v_model:
         matrix = []
         target = '%s/%s/w2v_embedding' % (IO_DIR, domain_name)
         if not self.model:
+            print(self.model)
             self.model = Word2Vec.load(target)
-        for word in self.model.vocab:
+        for word in self.vocab:
             self.embeddings[word] = list(self.model[word])
             matrix.append(list(self.model[word]))
         self.vector_size = len(self.embeddings)
