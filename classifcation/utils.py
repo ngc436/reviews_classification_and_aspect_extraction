@@ -21,7 +21,6 @@ def vocab_creation(domain_name, max_len=0, vocab_size=0):
             continue
 
         for word in words:
-            # flag = bool()
             try:
                 word_freqs[word] += 1
             except KeyError:
@@ -69,7 +68,7 @@ def read_set(domain_name, set_name, vocab, max_len):
     data_x = []
     text = codecs.open(source, 'r', 'utf-8')
     for line in text:
-        # TODO: here was strip but the purpose was vague
+        # TODO: here was strip() but the purpose was vague
         words = line.split()
         if max_len > 0 and len(words) > max_len:
             continue
@@ -89,14 +88,15 @@ def read_set(domain_name, set_name, vocab, max_len):
 
 
 def read_data(domain_name, vocab_size=0, max_len=0):
-    print('Reading train set')
     vocab = vocab_creation(domain_name, max_len, vocab_size)
+    print('Reading train set...')
     train, train_max = read_set(domain_name=domain_name, set_name='train', vocab=vocab, max_len=0)
-    print('Reading test set')
+    print('Success')
+    print('Reading test set...')
     test, test_max = read_set(domain_name=domain_name, set_name='test', vocab=vocab, max_len=max_len)
+    print('Success')    
     max_len = max(train_max, test_max)
     return vocab, train, test, max_len
 
 
-vocab, train_x, test_x, max_len = read_data('amazon')
 print(max_len)

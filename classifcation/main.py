@@ -44,8 +44,10 @@ def main():
     #
     model = w2v_model()
     # model.create_model('amazon')
-    print('hello')
-    read_data('amazon')
+
+
+    #vocab, train_x, test_x, max_len = read_data('amazon')
+    max_len = 131
 
     # raw = ''
 

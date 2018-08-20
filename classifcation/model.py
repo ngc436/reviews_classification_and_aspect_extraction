@@ -11,7 +11,7 @@ from tqdm import tqdm
 import os
 import numpy as np
 from keras.utils import Sequence
-
+import skopt
 import tensorflow as tf
 
 # memory configuration
@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 # data is passed as np array
 class BatchGenerator(Sequence):
     def __init__(self, data, batch_size=64, labels=None, num_classes=5):
+        self.labels = labels
         self.data = data
         self.num_classes = num_classes
         self.batch_size = batch_size
@@ -38,13 +39,17 @@ class BatchGenerator(Sequence):
         return int(np.ceil(len(self.data) / self.batch_size))
 
     def __getitem__(self, index):
-        part_indixes = self.indexes
+        part_indixes = self.indexes[index * self.batch_size:(index + 1)]
+        X =
 
 
 def sentence_batch_generator(data, batch_size=64, num_classes=5):
     n_batch = len(data) / batch_size
     batch_count = 0
+    # shuffle with labels
     np.random.shuffle(data)
+
+    while
 
 
 class Base_Model:
@@ -89,30 +94,36 @@ class CNN_model(Base_Model):
                           padding='valid', kernel_initializer='normal', activation='relu'
                           )(word_embedding)
 
-        maxpool_0 = MaxPool2D(pool_size=(sequence_length - filter_size[0] + 1, 1), strides=(1, 1), padding='valid')(
+        maxpool_0 = MaxPool2D(pool_size=(max_sentence_len - filter_size[0] + 1, 1), strides=(1, 1), padding='valid')(
             convol_0)
-        maxpool_1 = MaxPool2D(pool_size=(sequence_length - filter_size[1] + 1, 1), strides=(1, 1), padding='valid')(
+        maxpool_1 = MaxPool2D(pool_size=(max_sentence_len - filter_size[1] + 1, 1), strides=(1, 1), padding='valid')(
             convol_1)
-        maxpool_2 = MaxPool2D(pool_size=(sequence_length - filter_size[2] + 1, 1), strides=(1, 1), padding='valid')(
+        maxpool_2 = MaxPool2D(pool_size=(max_sentence_len - filter_size[2] + 1, 1), strides=(1, 1), padding='valid')(
             convol_2)
 
-        # concatenated_tensor = Concatenate(axis=1)([maxpool_0, maxpool_1, maxpool_2])
-        flatten = Flatten
+        concatenated_tensor = Concatenate(axis=1)([maxpool_0, maxpool_1, maxpool_2])
+        flatten = Flatten()(concatenated_tensor)
+        dropout = Dropout(drop)(flatten)
+        output = Dense(utils=2, activation='softmax')(dropout)
 
-        self.model = Model(inputs=inputs, outputs=outputs, epochs=200)
 
-    def train_model(self, x_train, y_train, epochs=100, batch_size=100):
+        self.model = Model(inputs=inputs, outputs=output, epochs=200)
+
+    def train_model(self, x_train, y_train, x_test, y_test, epochs=100, batch_size=100):
         checkpoint = ModelCheckpoint('weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
                                      verbose=1, save_best_only=True, mode='auto')
         # TODO: tune optimizer params
         self.model.compile(optimizer=Adam(lr=1e-4), loss=losses.categorical_crossentropy, metrics=['acc'])
         print('Model is being trained...')
         self.model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1,
-                       callbacks=[checkpoint], validation_data=(X_test))
+                       callbacks=[checkpoint], validation_data=(x_test, y_test))
 
     def predict(self):
         raise NotImplementedError
 
 
 class LSTM_model(Base_Model):
-    pass
+
+    def __init__(self):
+        # sequence_length =
+        model = None
