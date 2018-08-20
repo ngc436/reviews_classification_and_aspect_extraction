@@ -28,7 +28,11 @@ class w2v_model:
         self.vector_size = None
         self.matrix = None
 
+    def create_vocab(self,max_len=0,vocab_size=0):
+        pass
+
     def create_model(self, domain_name, vec_size=300, window=7, min_count=2):
+
         source = '%s/%s/train.csv' % (IO_DIR, domain_name)
         target = '%s/%s/w2v_embedding' % (IO_DIR, domain_name)
         workers = multiprocessing.cpu_count()
@@ -40,6 +44,7 @@ class w2v_model:
 
     # TODO: fix embedding dim
     def read_data(self, domain_name):
+
         matrix = []
         target = '%s/%s/w2v_embedding' % (IO_DIR, domain_name)
         if not self.model:
@@ -51,6 +56,7 @@ class w2v_model:
         self.matrix = np.asarray(matrix)
 
     def get_word_embedding(self, word):
+
         try:
             return self.embeddings[word]
         except KeyError:

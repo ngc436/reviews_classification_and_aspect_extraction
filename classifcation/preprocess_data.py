@@ -74,5 +74,3 @@ def batch_iterator(data, batch_size, num_epoch, shuffle=True):
             start = i * batch_size
             end = min((i + 1) * batch_size, data_size)
             yield shuffled_data[start:end]
-
-# def sentence_batch_generator(data, batch_size,)
