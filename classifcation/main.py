@@ -2,6 +2,7 @@
 
 # create embeddings if don't exist or pass pretrained files
 from classifcation.word2vec_preparation import w2v_model
+from classifcation.utils import *
 from sklearn.model_selection import train_test_split
 from classifcation.preprocess_data import *
 import os
@@ -44,7 +45,7 @@ def main():
     model = w2v_model()
     # model.create_model('amazon')
     print('hello')
-    model.read_data('amazon')
+    read_data('amazon')
 
     # raw = ''
 

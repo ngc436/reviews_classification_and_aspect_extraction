@@ -1,1 +1,1 @@
-from classification.vis_tools import *
+import classifcation.vis_tools.vis
