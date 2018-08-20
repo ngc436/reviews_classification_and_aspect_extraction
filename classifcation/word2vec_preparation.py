@@ -1,6 +1,7 @@
 from gensim.models import Word2Vec
 import codecs
 import multiprocessing
+import operator
 
 # TODO: implement logging
 import logging
@@ -25,7 +26,7 @@ def vocab_creation(domain_name, maximum_len=0, vocab_size=0):
         source = '%s/%s/train.csv' % (IO_DIR, domain_name)
     except:
         print("Domain %s doesn't exist" % (domain_name))
-    print('Vocabulary initialization')
+    print('Vocabulary initialization...')
     total, unique = 0, 0
     word_freqs = {}
     top = 0
@@ -44,7 +45,40 @@ def vocab_creation(domain_name, maximum_len=0, vocab_size=0):
                 unique += 1
                 word_freqs[word] = 1
             total += 1
+    print('Total amount of words %i with %i unique ones' % (total, unique))
+    sorted_freq = sorted(word_freqs.items(), key=operator.itemgetter(1), reverse=True)
+    # TODO: simplify this part
+    vocab = {'<pad>': 0, '<unk>': 1, '<num>': 2}
+    index = len(vocab)
+    for word, _ in sorted_freq:
+        vocab[word] = index
+        index += 1
+        if vocab_size > 0 and index > vocab_size + 2:
+            break
+    if vocab_size > 0:
+        print('Vocabulary size is %i' % vocab_size)
 
+    ofile = codecs.open('%s/%s/vocab' % (IO_DIR, domain_name), mode='w', encoding='utf-8')
+    sorted_vocab = sorted(vocab.items(), key=operator.itemgetter(1))
+    for word, index in sorted_vocab:
+        if index < 3:
+            ofile.write(word + '/t' + str(0) + '\n')
+            continue
+        ofile.write(word +'/t' + str(word_freqs[word]) + '\n')
+    ofile.close()
+    print('Vocabulary is successfully created')
+
+    return vocab
+
+
+def read_set(domain_name, set_type, vocab, max_len):
+    assert set_type in {'train', 'test'}
+    source = '%s/%s/%s.csv' % (IO_DIR, domain_name, set_type)
+
+    max_len_x = 0
+
+
+# maxlen -
 
 class w2v_model:
 
@@ -72,7 +106,6 @@ class w2v_model:
         matrix = []
         target = '%s/%s/w2v_embedding' % (IO_DIR, domain_name)
         if not self.model:
-            print(self.model)
             self.model = Word2Vec.load(target)
         for word in self.vocab:
             self.embeddings[word] = list(self.model[word])
