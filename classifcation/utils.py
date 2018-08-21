@@ -43,7 +43,8 @@ def vocab_creation(domain_name, max_len=0, vocab_size=0):
     ofile = codecs.open('%s/%s/vocab' % (IO_DIR, domain_name), mode='w', encoding='utf-8')
     sorted_vocab = sorted(vocab.items(), key=operator.itemgetter(1))
     for word, index in sorted_vocab:
-        if index < 3:
+        # TODO: remove hardcore
+        if index < 2:
             ofile.write(word + '\t' + str(0) + '\n')
             continue
         ofile.write(word + '\t' + str(word_freqs[word]) + '\n')
@@ -99,4 +100,3 @@ def read_data(domain_name, vocab_size=0, max_len=0):
     return vocab, train, test, max_len
 
 
-print(max_len)

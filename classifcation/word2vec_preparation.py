@@ -2,6 +2,7 @@ from gensim.models import Word2Vec
 import codecs
 import multiprocessing
 import operator
+from classifcation.utils import *
 
 # TODO: implement logging
 import logging

@@ -7,11 +7,11 @@ from sklearn.model_selection import train_test_split
 from classifcation.preprocess_data import *
 import os
 import pandas as pd
-
+from keras.preprocessing import sequence
+from classifcation.model import CNN_model
 
 
 def main():
-
     # raw_data_path = '/home/maria/PycharmProjects/Datasets/' \
     #                 'amazon_review_full_csv/test.csv'
     # dataset1 = pd.read_csv(raw_data_path, header=None)
@@ -42,12 +42,16 @@ def main():
     # dataset['rating'].to_csv("data_dir/amazon/y_train.csv")
     # dataset['processed_text'].to_csv("data_dir/amazon/train.csv")
     #
-    model = w2v_model()
+    # model = w2v_model()
     # model.create_model('amazon')
 
+    nn_model = CNN_model()
+    vocab, train_x, test_x, max_len = read_data('amazon')
+    nn_model.create_model(vocab, max_len)
+    nn_model.get_layer('word_embedding').trainable = False
 
-    #vocab, train_x, test_x, max_len = read_data('amazon')
-    max_len = 131
+    nn_model.train_model(train_x, )
+    # transforms a list of num_samples sequences into 2D np.array shape (num_samples, num_timesteps)
 
     # raw = ''
 
