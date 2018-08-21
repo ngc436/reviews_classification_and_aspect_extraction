@@ -1,6 +1,6 @@
 from keras.layers import Input, Dense, \
     Embedding, Conv2D, MaxPool2D, Reshape, \
-    Flatten, Dropout, Concatenate
+    Flatten, Dropout, Concatenate, Convolution1D, MaxPooling1D
 from keras.optimizers import Adam
 from keras.models import Model
 import logging
@@ -17,6 +17,8 @@ from tqdm import tqdm
 import time
 from keras.preprocessing import sequence
 from sklearn.model_selection import StratifiedKFold
+
+IO_DIR = 'data_dir'
 
 # memory configuration
 
@@ -61,8 +63,6 @@ def sentence_batch_generator(data, batch_size=64, num_classes=5, labels=None):
             np.random.shuffle(data)
             batch_count = 0
 
-
-
         batch = data[batch_count * batch_size:(batch_count + 1) * batch_size]
         batch_count += 1
         yield batch, y
@@ -95,67 +95,95 @@ class CNN_model(Base_Model):
         model = None
 
     # max_sentence_len = 0 means no limit on num of words during training
-    def create_model(self, vocabulary, max_sentence_len=0, embedding_dim=None,
+    def create_model(self, vocabulary, max_sentence_len=0, embedding_dim=300,
                      num_conv_filters=512, filter_size=None, drop=0.5):
+
+        # TODO: state hyperparams explicitly
+        NUM_FILTERS = 10
+        DROPOUT_PROB = (0.5, 0.8)
 
         if filter_size is None:
             filter_size = [3, 4, 5]
+
         vocab_size = len(vocabulary)
-        inputs = Input(shape=(max_sentence_len,), dtype='int32', name='reviews_input')
+        inputs = Input(shape=(max_sentence_len, embedding_dim), dtype='int32', name='reviews_input')
         # TODO: find out what is neg_input
         word_embedding = Embedding(input_dim=vocab_size, output_dim=embedding_dim,
-                                   mask_zero=True, name='word_embedding')
+                                   input_length=max_sentence_len, mask_zero=True, name='word_embedding')(inputs)
+        #e_w = word_embedding(inputs)
+        # reshape = Reshape((max_sentence_len,embedding_dim,1))(word_embedding)
+
+        # embedding weights initialization from w2v model
+        # embedding_model.load('%s/%s/w2v_embedding' % (IO_DIR, domain_name))
+        # embedding_weights = {key: }
+
         # TODO: check input type and the need of reshaping
         # TODO: thy other activation function
-        convol_0 = Conv2D(num_conv_filters, kernel_size=(filter_size[0], embedding_dim),
-                          padding='valid', kernel_initializer='normal', activation='relu'
-                          )(word_embedding)
-        convol_1 = Conv2D(num_conv_filters, kernel_size=(filter_size[1], embedding_dim),
-                          padding='valid', kernel_initializer='normal', activation='relu'
-                          )(word_embedding)
-        convol_2 = Conv2D(num_conv_filters, kernel_size=(filter_size[2], embedding_dim),
-                          padding='valid', kernel_initializer='normal', activation='relu'
-                          )(word_embedding)
 
-        maxpool_0 = MaxPool2D(pool_size=(max_sentence_len - filter_size[0] + 1, 1), strides=(1, 1), padding='valid')(
-            convol_0)
-        maxpool_1 = MaxPool2D(pool_size=(max_sentence_len - filter_size[1] + 1, 1), strides=(1, 1), padding='valid')(
-            convol_1)
-        maxpool_2 = MaxPool2D(pool_size=(max_sentence_len - filter_size[2] + 1, 1), strides=(1, 1), padding='valid')(
-            convol_2)
+        z = Dropout(DROPOUT_PROB[0])(word_embedding)
 
-        concatenated_tensor = Concatenate(axis=1)([maxpool_0, maxpool_1, maxpool_2])
-        flatten = Flatten()(concatenated_tensor)
-        dropout = Dropout(drop)(flatten)
+        # convolutional section
+        conv_list = []
+        # TODO: check conv2d
+        for sz in filter_size:
+            conv = Convolution1D(filters=NUM_FILTERS, kernel_size=sz, padding="valid",
+                                 activation="relu",strides=1)(z)
+            conv = MaxPooling1D(pool_size=2)(conv)
+            conv = Flatten()(conv)
+            conv_list.append(conv)
+
+        flatten = Concatenate()(conv_list) if len(conv_list) > 1 else conv_list[0]
+        dropout = Dropout(DROPOUT_PROB[1])(flatten)
+
         output = Dense(utils=2, activation='softmax')(dropout)
 
         self.model = Model(inputs=inputs, outputs=output, epochs=200)
 
-    def train_model(self, x_train, y_train, x_test, y_test, epochs=100, batch_size=100, max_len=0):
+
+    def train_model(self, x_train, y_train, x_test, y_test, vocab, epochs=100, batch_size=100, max_len=0):
         checkpoint = ModelCheckpoint('weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
                                      verbose=1, save_best_only=True, mode='auto')
+        min_loss = float('inf')
         # TODO: tune optimizer parameters
-        self.model.compile(optimizer=Adam(lr=1e-4), loss=losses.categorical_crossentropy, metrics=['acc'])
+        self.model.compile(optimizer=Adam(lr=1e-4), loss=losses.categorical_crossentropy,
+                           metrics=['accuracy'])
         # transforms a list of num_samples sequences into 2D np.array shape (num_samples, num_timesteps)
-        train_x = sequence.pad_sequences(x_train, maxlen=max_len)
+        train_x = sequence.pad_sequences(x_train, maxlen=max_len, padding='post', truncating='post')
         print('Size of training set: %i' % len(train_x))
-        test_x = sequence.pad_sequence(x_test, maxlen=max_len)
+        test_x = sequence.pad_sequences(x_test, maxlen=max_len, padding='post', truncating='post')
         print('Size of test set: %i' % len(test_x))
         sen_gen = sentence_batch_generator(x_train, batch_size)
+
+        vocab_inv = {}
+        for w, ind in vocab.items():
+            vocab_inv[ind] = w
+
         batches_num_epoch = 1000
+        print('Model is being trained...')
         for i in range(epochs):
             start = time.time()
             loss, max_margin_loss = 0., 0.
             for b in tqdm(range(batches_num_epoch)):
                 sen_input = sen_gen.next()
-                batch_loss, batch_max_margin_loss = self.model.train_on_batch(sen_input, np.ones((batch_size, 1)))
+                batch_loss, batch_max_margin_loss = self.model.train_on_batch(sen_input,
+                                                                              np.ones((batch_size, 1)))
                 loss += batch_loss / batches_num_epoch
                 max_margin_loss += batch_max_margin_loss / batches_num_epoch
-        total_time = time.time() - start
+            total_time = time.time() - start
+            if loss < min_loss:
+                min_loss = loss
+                word_emb = self.model.get_layer('word_embedding').W.get_value()
+                word_emb = word_emb / np.linalg.norm(word_emb, axis=-1, keepdims=True)
+                # TODO: remove domain name
+                self.model.save_weights('%s/%s/model_param' % (IO_DIR, 'amazon'))
 
-        print('Model is being trained...')
-        self.model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1,
-                       callbacks=[checkpoint], validation_data=(x_test, y_test))
+            print('Epoch %d, train %is' % (i, total_time))
+
+        # self.model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1,
+        #                callbacks=[checkpoint], validation_data=(x_test, y_test))
+
+    def simple_train(self):
+        pass
 
     def predict(self):
         raise NotImplementedError

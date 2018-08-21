@@ -48,9 +48,9 @@ def main():
     nn_model = CNN_model()
     vocab, train_x, test_x, max_len = read_data('amazon')
     nn_model.create_model(vocab, max_len)
-    nn_model.get_layer('word_embedding').trainable = False
+    nn_model.model.get_layer('word_embedding').trainable = False
 
-    nn_model.train_model(train_x, )
+    # nn_model.train_model(train_x, )
     # transforms a list of num_samples sequences into 2D np.array shape (num_samples, num_timesteps)
 
     # raw = ''
