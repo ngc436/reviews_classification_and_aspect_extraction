@@ -17,6 +17,7 @@ from tqdm import tqdm
 import time
 from keras.preprocessing import sequence
 from sklearn.model_selection import StratifiedKFold
+from gensim.models import Word2Vec
 
 IO_DIR = 'data_dir'
 
@@ -101,16 +102,17 @@ class CNN_model(Base_Model):
         # TODO: state hyperparams explicitly
         NUM_FILTERS = 10
         DROPOUT_PROB = (0.5, 0.8)
+        HIDDEN = 50
 
         if filter_size is None:
             filter_size = [3, 4, 5]
 
         vocab_size = len(vocabulary)
-        inputs = Input(shape=(max_sentence_len, embedding_dim), dtype='int32', name='reviews_input')
+        inputs = Input(shape=(max_sentence_len,), dtype='int32', name='reviews_input')
         # TODO: find out what is neg_input
         word_embedding = Embedding(input_dim=vocab_size, output_dim=embedding_dim,
-                                   input_length=max_sentence_len, mask_zero=True, name='word_embedding')(inputs)
-        #e_w = word_embedding(inputs)
+                                   input_length=max_sentence_len, name='word_embedding')(inputs)
+        # e_w = word_embedding(inputs)
         # reshape = Reshape((max_sentence_len,embedding_dim,1))(word_embedding)
 
         # embedding weights initialization from w2v model
@@ -127,7 +129,7 @@ class CNN_model(Base_Model):
         # TODO: check conv2d
         for sz in filter_size:
             conv = Convolution1D(filters=NUM_FILTERS, kernel_size=sz, padding="valid",
-                                 activation="relu",strides=1)(z)
+                                 activation="relu", strides=1)(z)
             conv = MaxPooling1D(pool_size=2)(conv)
             conv = Flatten()(conv)
             conv_list.append(conv)
@@ -135,10 +137,10 @@ class CNN_model(Base_Model):
         flatten = Concatenate()(conv_list) if len(conv_list) > 1 else conv_list[0]
         dropout = Dropout(DROPOUT_PROB[1])(flatten)
 
-        output = Dense(utils=2, activation='softmax')(dropout)
-
-        self.model = Model(inputs=inputs, outputs=output, epochs=200)
-
+        output = Dense(HIDDEN, activation='relu')(dropout)
+        # TODO: remove hardcore
+        model_output = Dense(5, activation="softmax")(output)
+        self.model = Model(inputs=inputs, outputs=model_output)
 
     def train_model(self, x_train, y_train, x_test, y_test, vocab, epochs=100, batch_size=100, max_len=0):
         checkpoint = ModelCheckpoint('weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
@@ -182,8 +184,33 @@ class CNN_model(Base_Model):
         # self.model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1,
         #                callbacks=[checkpoint], validation_data=(x_test, y_test))
 
-    def simple_train(self):
-        pass
+    def simple_train(self, domain_name, vocab, x_train, y_train, x_test, y_test, max_len,
+                     batch_size=64, num_epochs=10):
+
+        checkpoint = ModelCheckpoint('weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
+                                     verbose=1, save_best_only=True, mode='auto')
+        min_loss = float('inf')
+        # TODO: tune optimizer parameters
+        self.model.compile(optimizer=Adam(lr=1e-4), loss=losses.categorical_crossentropy,
+                           metrics=['accuracy'])
+
+        x_train = sequence.pad_sequences(x_train, maxlen=max_len, padding='post', truncating='post')
+        print('Size of training set: %i' % len(x_train))
+        x_test = sequence.pad_sequences(x_test, maxlen=max_len, padding='post', truncating='post')
+        print('Size of test set: %i' % len(x_test))
+
+        vocab_inv = {}
+        for w, ind in vocab.items():
+            vocab_inv[ind] = w
+        embedding_model = Word2Vec.load('%s/%s/w2v_embedding' % (IO_DIR, domain_name))
+        embedding_weights = {key: embedding_model[word] if word in embedding_model else
+        np.random.uniform(-0.25, 0.25, embedding_model.vector_size)
+                             for key, word in vocab_inv.items()}
+        weights = np.array([v for v in embedding_weights.values()])
+        embedding_layer = self.model.get_layer("word_embedding")
+        embedding_layer.set_weights([weights])
+        self.model.fit(x_train, y_train, batch_size=batch_size, epochs=num_epochs,
+                       validation_data=(x_test, y_test), verbose=2)
 
     def predict(self):
         raise NotImplementedError

@@ -9,6 +9,8 @@ import os
 import pandas as pd
 from keras.preprocessing import sequence
 from classifcation.model import CNN_model
+from numpy import genfromtxt
+from keras.utils import to_categorical
 
 
 def main():
@@ -47,8 +49,24 @@ def main():
 
     nn_model = CNN_model()
     vocab, train_x, test_x, max_len = read_data('amazon')
+
+    # TODO: refactor this
+    val_list = []
+    for i in genfromtxt('data_dir/amazon/y_test.csv', delimiter=','):
+        val_list.append([int(i)])
+    test_y = np.asarray(val_list).mean(axis=1).astype(int)-1
+    test_y = to_categorical(test_y, 5)
+
+    val_list = []
+    for i in genfromtxt('data_dir/amazon/y_train.csv', delimiter=','):
+        val_list.append([int(i)])
+    train_y = np.asarray(val_list).mean(axis=1).astype(int) - 1
+    train_y = to_categorical(train_y, 5)
+
     nn_model.create_model(vocab, max_len)
     nn_model.model.get_layer('word_embedding').trainable = False
+    nn_model.simple_train('amazon', vocab, train_x, train_y,
+                          test_x, test_y, max_len)
 
     # nn_model.train_model(train_x, )
     # transforms a list of num_samples sequences into 2D np.array shape (num_samples, num_timesteps)
