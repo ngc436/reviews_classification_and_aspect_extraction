@@ -49,6 +49,14 @@ def clean_text(text):
     return tokens_res
 
 
+def process_similarity(w2v_model, word):
+    try:
+        sim = w2v_model.findSynonyms(word, 1).take(1)[0][0]
+    except:
+        return None
+    return sim
+
+
 def tokens_to_text(tokens):
     return " ".join(tokens)
 
@@ -75,6 +83,7 @@ def batch_iterator(data, batch_size, num_epoch, shuffle=True):
             start = i * batch_size
             end = min((i + 1) * batch_size, data_size)
             yield shuffled_data[start:end]
+
 
 def _prepare_input_sequences(max_num_of_words=1000):
     tokenizer = Tokenizer(num_words=max_num_of_words)

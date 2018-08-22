@@ -1,12 +1,13 @@
 from keras.layers import Input, Dense, \
     Embedding, Conv2D, MaxPool2D, Reshape, \
-    Flatten, Dropout, Concatenate, Convolution1D, MaxPooling1D
+    Flatten, Dropout, Concatenate, Convolution1D, MaxPooling1D, \
+    LSTM, RepeatVector
 from keras.optimizers import Adam
 from keras.models import Model
 import logging
 from keras import losses
 from keras import backend as k
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 from tqdm import tqdm
 import os
 import numpy as np
@@ -76,6 +77,12 @@ def max_margin_loss(y_true, y_pred):
     return k.mean(y_pred)
 
 
+def get_callbacks(name_weights, patience_lr):
+    checkpoint_save = ModelCheckpoint(name_weights, save_best_only=True, monitor='val_loss', mode='min')
+    reduce_lr_loss = ReduceLROnPlateau(montor='loss', factor=0.1, patience=patience_lr,
+                                       verbose=1, epsilon=1e-4, mode='min')
+
+
 class Base_Model:
 
     def create_model(self, *args):
@@ -96,7 +103,6 @@ class CNN_model(Base_Model):
         # sequence_length =
         model = None
 
-    # max_sentence_len = 0 means no limit on num of words during training
     def create_model(self, vocabulary, max_sentence_len=0, embedding_dim=300,
                      num_conv_filters=512, filter_size=None, drop=0.5):
 
@@ -136,15 +142,15 @@ class CNN_model(Base_Model):
         model_output = Dense(5, activation="sigmoid")(output)
         self.model = Model(inputs=inputs, outputs=model_output)
 
-    def train_model(self, x_train, y_train, x_test, y_test, vocab, epochs=100, batch_size=100, max_len=0, max_num_of_words=1000):
+    def train_model(self, x_train, y_train, x_test, y_test, vocab, epochs=100, batch_size=100, max_len=0,
+                    max_num_of_words=1000):
         checkpoint = ModelCheckpoint('weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
                                      verbose=1, save_best_only=True, mode='auto')
         min_loss = float('inf')
         # TODO: tune optimizer parameters
         self.model.compile(optimizer=Adam(lr=1e-4), loss=losses.categorical_crossentropy,
                            metrics=['accuracy'])
-
-
+        print(self.model.summary())
 
         tokenizer = Tokenizer(num_words=max_num_of_words)
         tokenizer.fit_on_texts(x_train + x_test)
@@ -156,8 +162,6 @@ class CNN_model(Base_Model):
         test_x = sequence.pad_sequences(x_test, maxlen=max_len, padding='post', truncating='post')
         print('Size of test set: %i' % len(test_x))
         sen_gen = sentence_batch_generator(x_train, batch_size)
-
-
 
         vocab_inv = {}
         for w, ind in vocab.items():
@@ -188,7 +192,7 @@ class CNN_model(Base_Model):
         #                callbacks=[checkpoint], validation_data=(x_test, y_test))
 
     def simple_train(self, domain_name, vocab, x_train, y_train, x_test, y_test, max_len,
-                     batch_size=256, num_epochs=10, max_num_of_words=5000):
+                     batch_size=256, num_epochs=10, max_num_of_words=20000):
 
         checkpoint = ModelCheckpoint('weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
                                      verbose=1, save_best_only=True, mode='auto')
@@ -196,7 +200,6 @@ class CNN_model(Base_Model):
         # TODO: tune optimizer parameters
         self.model.compile(optimizer=Adam(lr=1e-3), loss=losses.categorical_crossentropy,
                            metrics=['accuracy'])
-
 
         tokenizer = Tokenizer(num_words=max_num_of_words)
         tokenizer.fit_on_texts(x_train + x_test)
@@ -221,7 +224,26 @@ class CNN_model(Base_Model):
         self.model.fit(x_train, y_train, batch_size=batch_size, epochs=num_epochs,
                        validation_data=(x_test, y_test), verbose=1)
 
+    def train_on_embeddings(self, embedding_type='w2v'):
+        assert embedding_type in ['w2v', 'glove']
+
     def predict(self):
+        raise NotImplementedError
+
+
+class CNN_2D(Base_Model):
+    """
+    Each sentence is represented as an image of shape (embedding_dim, sent_num_of_words)
+    """
+
+    def __init__(self):
+        self.model = None
+
+    def _reshape_data(self, data, labels, w2v_model):
+
+    # w2v_model
+
+    def create_model(self, *args):
         raise NotImplementedError
 
 
@@ -239,14 +261,46 @@ class LSTM_model(Base_Model):
     # tokenizer = Tokenizer(num_words=MAX_WORDS_TO_USE
     #
 
-
     def create_model(self, max_sentence_len):
         # TODO: difference max_sentence_len vs max_words
-
 
         inputs = Input(shape=(max_sentence_len,), name='inputs')
         embedding_layer = Embedding()
 
+
+class CNN_DAE(Base_Model):
+
+    def __init__(self):
+        model = None
+
+    def create_model(self):
+        pass
+
+
+class CNN_AE(Base_Model):
+
+    def __init__(self):
+        model = None
+
+    def create_model(self, *args):
+        pass
+
+
+class LSTM_AE(Base_Model):
+
+    def __init__(self):
+        model = None
+
+    def create_model(self, max_sentence_len, input_dim, latent_dim):
+        input_shape = (max_sentence_len, input_dim)
+        inputs = Input(shape=input_shape)
+        encoded = LSTM(latent_dim)(inputs)
+
+        decoded = RepeatVector(max_sentence_len)()
+        decoded = LSTM(input_dim, return_sequences=True)(decoded)
+
+        sequence_autoencoder = Model(inputs, decoded)
+        encoder = Model(inputs, encoded)
 
 
 class VAE(Base_Model):

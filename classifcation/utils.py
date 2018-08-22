@@ -1,5 +1,6 @@
 import codecs
 import operator
+from sklearn.model_selection import train_test_split
 
 IO_DIR = 'data_dir'
 
@@ -95,8 +96,12 @@ def read_data(domain_name, vocab_size=0, max_len=0):
     print('Success')
     print('Reading test set...')
     test, test_max = read_set(domain_name=domain_name, set_name='test', vocab=vocab, max_len=max_len)
-    print('Success')    
+    print('Success')
     max_len = max(train_max, test_max)
     return vocab, train, test, max_len
 
 
+def train_test_split(data, labels):
+    X_train, X_test, y_train, y_test = train_test_split(data,
+                                                        labels, test_size=0.2)
+    return
