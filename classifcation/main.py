@@ -14,6 +14,9 @@ from keras.utils import to_categorical
 
 
 def main():
+    # TODO: load all data + implement cross-validation
+
+    # TODO: look at distributions of ratings in train/test sets
     # raw_data_path = '/home/maria/PycharmProjects/Datasets/' \
     #                 'amazon_review_full_csv/test.csv'
     # dataset1 = pd.read_csv(raw_data_path, header=None)
@@ -51,6 +54,7 @@ def main():
     vocab, train_x, test_x, max_len = read_data('amazon')
 
     # TODO: refactor this
+    # converting to one-hot representation
     val_list = []
     for i in genfromtxt('data_dir/amazon/y_test.csv', delimiter=','):
         val_list.append([int(i)])

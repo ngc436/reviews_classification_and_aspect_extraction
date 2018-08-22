@@ -6,6 +6,7 @@ from nltk.stem import PorterStemmer, WordNetLemmatizer
 import nltk
 from nltk.corpus import wordnet as wn
 from nltk.corpus import stopwords
+from keras.preprocessing.text import Tokenizer
 # nltk.download('stopwords')
 # nltk.download('averaged_perceptron_tagger')
 # nltk.download('wordnet')
@@ -74,3 +75,7 @@ def batch_iterator(data, batch_size, num_epoch, shuffle=True):
             start = i * batch_size
             end = min((i + 1) * batch_size, data_size)
             yield shuffled_data[start:end]
+
+def _prepare_input_sequences(max_num_of_words=1000):
+    tokenizer = Tokenizer(num_words=max_num_of_words)
+    pass

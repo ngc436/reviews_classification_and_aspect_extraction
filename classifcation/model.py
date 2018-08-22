@@ -16,6 +16,7 @@ import tensorflow as tf
 from tqdm import tqdm
 import time
 from keras.preprocessing import sequence
+from keras.preprocessing.text import Tokenizer
 from sklearn.model_selection import StratifiedKFold
 from gensim.models import Word2Vec
 
@@ -109,17 +110,9 @@ class CNN_model(Base_Model):
 
         vocab_size = len(vocabulary)
         inputs = Input(shape=(max_sentence_len,), dtype='int32', name='reviews_input')
-        # TODO: find out what is neg_input
         word_embedding = Embedding(input_dim=vocab_size, output_dim=embedding_dim,
                                    input_length=max_sentence_len, name='word_embedding')(inputs)
-        # e_w = word_embedding(inputs)
-        # reshape = Reshape((max_sentence_len,embedding_dim,1))(word_embedding)
 
-        # embedding weights initialization from w2v model
-        # embedding_model.load('%s/%s/w2v_embedding' % (IO_DIR, domain_name))
-        # embedding_weights = {key: }
-
-        # TODO: check input type and the need of reshaping
         # TODO: thy other activation function
 
         z = Dropout(DROPOUT_PROB[0])(word_embedding)
@@ -138,23 +131,33 @@ class CNN_model(Base_Model):
         dropout = Dropout(DROPOUT_PROB[1])(flatten)
 
         output = Dense(HIDDEN, activation='relu')(dropout)
+
         # TODO: remove hardcore
-        model_output = Dense(5, activation="softmax")(output)
+        model_output = Dense(5, activation="sigmoid")(output)
         self.model = Model(inputs=inputs, outputs=model_output)
 
-    def train_model(self, x_train, y_train, x_test, y_test, vocab, epochs=100, batch_size=100, max_len=0):
+    def train_model(self, x_train, y_train, x_test, y_test, vocab, epochs=100, batch_size=100, max_len=0, max_num_of_words=1000):
         checkpoint = ModelCheckpoint('weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
                                      verbose=1, save_best_only=True, mode='auto')
         min_loss = float('inf')
         # TODO: tune optimizer parameters
         self.model.compile(optimizer=Adam(lr=1e-4), loss=losses.categorical_crossentropy,
                            metrics=['accuracy'])
+
+
+
+        tokenizer = Tokenizer(num_words=max_num_of_words)
+        tokenizer.fit_on_texts(x_train + x_test)
+        x_train = tokenizer.texts_to_sequences(x_train)
+        x_test = tokenizer.texts_to_sequences(x_test)
         # transforms a list of num_samples sequences into 2D np.array shape (num_samples, num_timesteps)
         train_x = sequence.pad_sequences(x_train, maxlen=max_len, padding='post', truncating='post')
         print('Size of training set: %i' % len(train_x))
         test_x = sequence.pad_sequences(x_test, maxlen=max_len, padding='post', truncating='post')
         print('Size of test set: %i' % len(test_x))
         sen_gen = sentence_batch_generator(x_train, batch_size)
+
+
 
         vocab_inv = {}
         for w, ind in vocab.items():
@@ -185,15 +188,21 @@ class CNN_model(Base_Model):
         #                callbacks=[checkpoint], validation_data=(x_test, y_test))
 
     def simple_train(self, domain_name, vocab, x_train, y_train, x_test, y_test, max_len,
-                     batch_size=64, num_epochs=10):
+                     batch_size=256, num_epochs=10, max_num_of_words=5000):
 
         checkpoint = ModelCheckpoint('weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
                                      verbose=1, save_best_only=True, mode='auto')
         min_loss = float('inf')
         # TODO: tune optimizer parameters
-        self.model.compile(optimizer=Adam(lr=1e-4), loss=losses.categorical_crossentropy,
+        self.model.compile(optimizer=Adam(lr=1e-3), loss=losses.categorical_crossentropy,
                            metrics=['accuracy'])
 
+
+        tokenizer = Tokenizer(num_words=max_num_of_words)
+        tokenizer.fit_on_texts(x_train + x_test)
+        x_train = tokenizer.texts_to_sequences(x_train)
+        x_test = tokenizer.texts_to_sequences(x_test)
+        # transforms a list of num_samples sequences into 2D np.array shape (num_samples, num_timesteps)
         x_train = sequence.pad_sequences(x_train, maxlen=max_len, padding='post', truncating='post')
         print('Size of training set: %i' % len(x_train))
         x_test = sequence.pad_sequences(x_test, maxlen=max_len, padding='post', truncating='post')
@@ -210,7 +219,7 @@ class CNN_model(Base_Model):
         embedding_layer = self.model.get_layer("word_embedding")
         embedding_layer.set_weights([weights])
         self.model.fit(x_train, y_train, batch_size=batch_size, epochs=num_epochs,
-                       validation_data=(x_test, y_test), verbose=2)
+                       validation_data=(x_test, y_test), verbose=1)
 
     def predict(self):
         raise NotImplementedError
@@ -220,4 +229,27 @@ class LSTM_model(Base_Model):
 
     def __init__(self):
         # sequence_length =
+        model = None
+
+    # MAX_WORDS_TO_USE = 10000
+    # VALIDATION_SPLIT = 0.2
+    # EMBEDDING_DIM = 300
+
+    # from keras.preprocessing.text import Tokenizer
+    # tokenizer = Tokenizer(num_words=MAX_WORDS_TO_USE
+    #
+
+
+    def create_model(self, max_sentence_len):
+        # TODO: difference max_sentence_len vs max_words
+
+
+        inputs = Input(shape=(max_sentence_len,), name='inputs')
+        embedding_layer = Embedding()
+
+
+
+class VAE(Base_Model):
+
+    def __init__(self):
         model = None
