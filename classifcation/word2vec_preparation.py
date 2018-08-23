@@ -34,7 +34,6 @@ class w2v_model:
         self.vocab = vocab_creation('amazon')
 
     def create_model(self, domain_name, vec_size=300, window=7, min_count=2):
-
         source = '%s/%s/train.csv' % (IO_DIR, domain_name)
         target = '%s/%s/w2v_embedding' % (IO_DIR, domain_name)
         workers = multiprocessing.cpu_count()
@@ -43,6 +42,9 @@ class w2v_model:
         self.model = Word2Vec(sentences, size=vec_size, window=window, min_count=min_count, workers=workers, sg=sg)
         self.model.save(target)
         print("model is saved: %s" % (target))
+
+    def model_from_file(self, domain_name):
+        self.model = Word2Vec.load('%s/%s/w2v_embedding' % (IO_DIR, domain_name))
 
     # TODO: fix embedding dim
     def read_data(self, domain_name):
@@ -63,3 +65,18 @@ class w2v_model:
             return self.embeddings[word]
         except KeyError:
             return None
+
+    def get_w2v_mean(self, text, size=300):
+        vec = np.zeros(size).reshape((1, size))
+        num_words_in_vocab = 0
+        for word in text.split():
+            try:
+                vec += np.append(self.model[word])
+                print(vec)
+                break
+                num_words_in_vocab += 1
+            except KeyError:
+                continue
+        if num_words_in_vocab != 0:
+            vec /= num_words_in_vocab
+        return vec

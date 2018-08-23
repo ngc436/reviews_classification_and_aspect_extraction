@@ -69,6 +69,10 @@ def main():
 
     nn_model.create_model(vocab, max_len)
     nn_model.model.get_layer('word_embedding').trainable = False
+
+    train_x, test_x = prepare_input_sequences(train_x, test_x, max_len=max_len, type='freq_seq')
+    # train_x, test_x = prepare_input_sequences(train_x, test_x, type='freq_seq')
+
     nn_model.simple_train('amazon', vocab, train_x, train_y,
                           test_x, test_y, max_len)
 

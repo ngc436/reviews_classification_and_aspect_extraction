@@ -7,6 +7,8 @@ import nltk
 from nltk.corpus import wordnet as wn
 from nltk.corpus import stopwords
 from keras.preprocessing.text import Tokenizer
+from keras.preprocessing import sequence
+from classifcation.word2vec_preparation import w2v_model
 # nltk.download('stopwords')
 # nltk.download('averaged_perceptron_tagger')
 # nltk.download('wordnet')
@@ -85,6 +87,36 @@ def batch_iterator(data, batch_size, num_epoch, shuffle=True):
             yield shuffled_data[start:end]
 
 
-def _prepare_input_sequences(max_num_of_words=1000):
+def prepare_input_sequences(train_x, test_x, type, max_len=0, max_num_of_words=10000):
+    if type == 'w2v_mean':
+        model = w2v_model()
+        model.model_from_file('amazon')
+        train_x, test_x = _w2v_mean_preparation(train_x, test_x, model)
+    if type == 'freq_seq':
+        train_x, test_x = _freq_seq_preparation(train_x, test_x, max_len, max_num_of_words=max_num_of_words)
+    return train_x, test_x
+
+
+def _w2v_mean_preparation(train_x, test_x, w2v_model):
+    new_train_x = []
+    new_test_x = []
+    for sentence in train_x:
+        print(w2v_model.get_w2v_mean(sentence))
+        new_train_x.append(w2v_model.get_w2v_mean(sentence))
+        break
+    for sentence in test_x:
+        new_test_x.append(w2v_model.get_w2v_mean(sentence))
+    return np.array(new_train_x), np.array(new_test_x)
+
+
+def _freq_seq_preparation(train_x, test_x, max_len, max_num_of_words=1000):
     tokenizer = Tokenizer(num_words=max_num_of_words)
-    pass
+    tokenizer.fit_on_texts(train_x + test_x)
+    x_train = tokenizer.texts_to_sequences(train_x)
+    x_test = tokenizer.texts_to_sequences(test_x)
+    # transforms a list of num_samples sequences into 2D np.array shape (num_samples, num_timesteps)
+    x_train = sequence.pad_sequences(x_train, maxlen=max_len, padding='post', truncating='post')
+    print('Size of training set: %i' % len(x_train))
+    x_test = sequence.pad_sequences(x_test, maxlen=max_len, padding='post', truncating='post')
+    print('Size of test set: %i' % len(x_test))
+    return x_train, x_test

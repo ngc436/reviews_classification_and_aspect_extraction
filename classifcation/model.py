@@ -1,3 +1,5 @@
+# BUG: occasionally causes TypeError in __del__: 'NoneType' object is not callable
+
 from keras.layers import Input, Dense, \
     Embedding, Conv2D, MaxPool2D, Reshape, \
     Flatten, Dropout, Concatenate, Convolution1D, MaxPooling1D, \
@@ -7,7 +9,7 @@ from keras.models import Model
 import logging
 from keras import losses
 from keras import backend as k
-from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
+from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
 from tqdm import tqdm
 import os
 import numpy as np
@@ -152,15 +154,6 @@ class CNN_model(Base_Model):
                            metrics=['accuracy'])
         print(self.model.summary())
 
-        tokenizer = Tokenizer(num_words=max_num_of_words)
-        tokenizer.fit_on_texts(x_train + x_test)
-        x_train = tokenizer.texts_to_sequences(x_train)
-        x_test = tokenizer.texts_to_sequences(x_test)
-        # transforms a list of num_samples sequences into 2D np.array shape (num_samples, num_timesteps)
-        train_x = sequence.pad_sequences(x_train, maxlen=max_len, padding='post', truncating='post')
-        print('Size of training set: %i' % len(train_x))
-        test_x = sequence.pad_sequences(x_test, maxlen=max_len, padding='post', truncating='post')
-        print('Size of test set: %i' % len(test_x))
         sen_gen = sentence_batch_generator(x_train, batch_size)
 
         vocab_inv = {}
@@ -192,24 +185,16 @@ class CNN_model(Base_Model):
         #                callbacks=[checkpoint], validation_data=(x_test, y_test))
 
     def simple_train(self, domain_name, vocab, x_train, y_train, x_test, y_test, max_len,
-                     batch_size=256, num_epochs=10, max_num_of_words=20000):
+                     batch_size=32, num_epochs=10, max_num_of_words=20000):
 
         checkpoint = ModelCheckpoint('weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
                                      verbose=1, save_best_only=True, mode='auto')
-        min_loss = float('inf')
+        early_stop = EarlyStopping(monitor='val_acc', patience=5, mode='max')
+        callbacks_list = [checkpoint, early_stop]
         # TODO: tune optimizer parameters
         self.model.compile(optimizer=Adam(lr=1e-3), loss=losses.categorical_crossentropy,
                            metrics=['accuracy'])
 
-        tokenizer = Tokenizer(num_words=max_num_of_words)
-        tokenizer.fit_on_texts(x_train + x_test)
-        x_train = tokenizer.texts_to_sequences(x_train)
-        x_test = tokenizer.texts_to_sequences(x_test)
-        # transforms a list of num_samples sequences into 2D np.array shape (num_samples, num_timesteps)
-        x_train = sequence.pad_sequences(x_train, maxlen=max_len, padding='post', truncating='post')
-        print('Size of training set: %i' % len(x_train))
-        x_test = sequence.pad_sequences(x_test, maxlen=max_len, padding='post', truncating='post')
-        print('Size of test set: %i' % len(x_test))
 
         vocab_inv = {}
         for w, ind in vocab.items():
@@ -222,10 +207,10 @@ class CNN_model(Base_Model):
         embedding_layer = self.model.get_layer("word_embedding")
         embedding_layer.set_weights([weights])
         self.model.fit(x_train, y_train, batch_size=batch_size, epochs=num_epochs,
-                       validation_data=(x_test, y_test), verbose=1)
+                       validation_data=(x_test, y_test), verbose=2, callbacks=callbacks_list)
 
     def train_on_embeddings(self, embedding_type='w2v'):
-        assert embedding_type in ['w2v', 'glove']
+        assert embedding_type in ['pretrained_w2v', 'w2v', 'glove']
 
     def predict(self):
         raise NotImplementedError
@@ -239,9 +224,10 @@ class CNN_2D(Base_Model):
     def __init__(self):
         self.model = None
 
-    def _reshape_data(self, data, labels, w2v_model):
+    def _reshape_data(self, data, labels, embedding_dim, w2v_model):
+        # w2v_model
+        input = Input(shape=(embedding_dim, None, None))
 
-    # w2v_model
 
     def create_model(self, *args):
         raise NotImplementedError
@@ -307,3 +293,4 @@ class VAE(Base_Model):
 
     def __init__(self):
         model = None
+
