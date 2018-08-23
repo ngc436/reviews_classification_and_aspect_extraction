@@ -1,12 +1,15 @@
+# BUG: occasionally causes TypeError in __del__: 'NoneType' object is not callable
+
 from keras.layers import Input, Dense, \
     Embedding, Conv2D, MaxPool2D, Reshape, \
-    Flatten, Dropout, Concatenate, Convolution1D, MaxPooling1D
+    Flatten, Dropout, Concatenate, Convolution1D, MaxPooling1D, \
+    LSTM, RepeatVector, Activation
 from keras.optimizers import Adam
 from keras.models import Model
 import logging
 from keras import losses
 from keras import backend as k
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
 from tqdm import tqdm
 import os
 import numpy as np
@@ -16,6 +19,7 @@ import tensorflow as tf
 from tqdm import tqdm
 import time
 from keras.preprocessing import sequence
+from keras.preprocessing.text import Tokenizer
 from sklearn.model_selection import StratifiedKFold
 from gensim.models import Word2Vec
 
@@ -75,6 +79,12 @@ def max_margin_loss(y_true, y_pred):
     return k.mean(y_pred)
 
 
+def get_callbacks(name_weights, patience_lr):
+    checkpoint_save = ModelCheckpoint(name_weights, save_best_only=True, monitor='val_loss', mode='min')
+    reduce_lr_loss = ReduceLROnPlateau(montor='loss', factor=0.1, patience=patience_lr,
+                                       verbose=1, epsilon=1e-4, mode='min')
+
+
 class Base_Model:
 
     def create_model(self, *args):
@@ -95,7 +105,6 @@ class CNN_model(Base_Model):
         # sequence_length =
         model = None
 
-    # max_sentence_len = 0 means no limit on num of words during training
     def create_model(self, vocabulary, max_sentence_len=0, embedding_dim=300,
                      num_conv_filters=512, filter_size=None, drop=0.5):
 
@@ -109,17 +118,9 @@ class CNN_model(Base_Model):
 
         vocab_size = len(vocabulary)
         inputs = Input(shape=(max_sentence_len,), dtype='int32', name='reviews_input')
-        # TODO: find out what is neg_input
         word_embedding = Embedding(input_dim=vocab_size, output_dim=embedding_dim,
                                    input_length=max_sentence_len, name='word_embedding')(inputs)
-        # e_w = word_embedding(inputs)
-        # reshape = Reshape((max_sentence_len,embedding_dim,1))(word_embedding)
 
-        # embedding weights initialization from w2v model
-        # embedding_model.load('%s/%s/w2v_embedding' % (IO_DIR, domain_name))
-        # embedding_weights = {key: }
-
-        # TODO: check input type and the need of reshaping
         # TODO: thy other activation function
 
         z = Dropout(DROPOUT_PROB[0])(word_embedding)
@@ -138,22 +139,21 @@ class CNN_model(Base_Model):
         dropout = Dropout(DROPOUT_PROB[1])(flatten)
 
         output = Dense(HIDDEN, activation='relu')(dropout)
+
         # TODO: remove hardcore
-        model_output = Dense(5, activation="softmax")(output)
+        model_output = Dense(5, activation="sigmoid")(output)
         self.model = Model(inputs=inputs, outputs=model_output)
 
-    def train_model(self, x_train, y_train, x_test, y_test, vocab, epochs=100, batch_size=100, max_len=0):
+    def train_model(self, x_train, y_train, x_test, y_test, vocab, epochs=100, batch_size=100, max_len=0,
+                    max_num_of_words=1000):
         checkpoint = ModelCheckpoint('weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
                                      verbose=1, save_best_only=True, mode='auto')
         min_loss = float('inf')
         # TODO: tune optimizer parameters
         self.model.compile(optimizer=Adam(lr=1e-4), loss=losses.categorical_crossentropy,
                            metrics=['accuracy'])
-        # transforms a list of num_samples sequences into 2D np.array shape (num_samples, num_timesteps)
-        train_x = sequence.pad_sequences(x_train, maxlen=max_len, padding='post', truncating='post')
-        print('Size of training set: %i' % len(train_x))
-        test_x = sequence.pad_sequences(x_test, maxlen=max_len, padding='post', truncating='post')
-        print('Size of test set: %i' % len(test_x))
+        print(self.model.summary())
+
         sen_gen = sentence_batch_generator(x_train, batch_size)
 
         vocab_inv = {}
@@ -185,19 +185,15 @@ class CNN_model(Base_Model):
         #                callbacks=[checkpoint], validation_data=(x_test, y_test))
 
     def simple_train(self, domain_name, vocab, x_train, y_train, x_test, y_test, max_len,
-                     batch_size=64, num_epochs=10):
-
+                     batch_size=32, num_epochs=10, max_num_of_words=20000):
+        print('Training process has begun')
         checkpoint = ModelCheckpoint('weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
                                      verbose=1, save_best_only=True, mode='auto')
-        min_loss = float('inf')
+        early_stop = EarlyStopping(monitor='val_acc', patience=5, mode='max')
+        callbacks_list = [checkpoint, early_stop]
         # TODO: tune optimizer parameters
-        self.model.compile(optimizer=Adam(lr=1e-4), loss=losses.categorical_crossentropy,
+        self.model.compile(optimizer=Adam(lr=1e-3), loss=losses.categorical_crossentropy,
                            metrics=['accuracy'])
-
-        x_train = sequence.pad_sequences(x_train, maxlen=max_len, padding='post', truncating='post')
-        print('Size of training set: %i' % len(x_train))
-        x_test = sequence.pad_sequences(x_test, maxlen=max_len, padding='post', truncating='post')
-        print('Size of test set: %i' % len(x_test))
 
         vocab_inv = {}
         for w, ind in vocab.items():
@@ -210,9 +206,28 @@ class CNN_model(Base_Model):
         embedding_layer = self.model.get_layer("word_embedding")
         embedding_layer.set_weights([weights])
         self.model.fit(x_train, y_train, batch_size=batch_size, epochs=num_epochs,
-                       validation_data=(x_test, y_test), verbose=2)
+                       validation_data=(x_test, y_test), verbose=1, callbacks=callbacks_list)
+
+    def train_on_embeddings(self, embedding_type='w2v'):
+        assert embedding_type in ['pretrained_w2v', 'w2v', 'glove']
 
     def predict(self):
+        raise NotImplementedError
+
+
+class CNN_2D(Base_Model):
+    """
+    Each sentence is represented as an image of shape (embedding_dim, sent_num_of_words)
+    """
+
+    def __init__(self):
+        self.model = None
+
+    def _reshape_data(self, data, labels, embedding_dim, w2v_model):
+        # w2v_model
+        input = Input(shape=(embedding_dim, None, None))
+
+    def create_model(self, *args):
         raise NotImplementedError
 
 
@@ -220,4 +235,64 @@ class LSTM_model(Base_Model):
 
     def __init__(self):
         # sequence_length =
+        model = None
+
+    # MAX_WORDS_TO_USE = 10000
+    # VALIDATION_SPLIT = 0.2
+    # EMBEDDING_DIM = 300
+
+    # from keras.preprocessing.text import Tokenizer
+    # tokenizer = Tokenizer(num_words=MAX_WORDS_TO_USE
+    #
+
+    def create_model(self, max_sentence_len, max_words, max_len):
+        # TODO: difference max_sentence_len vs max_words
+
+        inputs = Input(shape=(max_sentence_len,), name='inputs')
+        embedding_layer = Embedding(max_words, 50, input_length=max_len)(inputs)
+        layer = LSTM(64)(embedding_layer)
+        layer = Activation('relu')(layer)
+        layer = Dropout(0.5)(layer)
+        layer = Dense(1, name='out_layer')(layer)
+        self.model = Model(inputs=inputs, outputs=layer)
+
+
+class CNN_DAE(Base_Model):
+
+    def __init__(self):
+        model = None
+
+    def create_model(self):
+        pass
+
+
+class CNN_AE(Base_Model):
+
+    def __init__(self):
+        model = None
+
+    def create_model(self, *args):
+        pass
+
+
+class LSTM_AE(Base_Model):
+
+    def __init__(self):
+        model = None
+
+    def create_model(self, max_sentence_len, input_dim, latent_dim):
+        input_shape = (max_sentence_len, input_dim)
+        inputs = Input(shape=input_shape)
+        encoded = LSTM(latent_dim)(inputs)
+
+        decoded = RepeatVector(max_sentence_len)()
+        decoded = LSTM(input_dim, return_sequences=True)(decoded)
+
+        sequence_autoencoder = Model(inputs, decoded)
+        encoder = Model(inputs, encoded)
+
+
+class VAE(Base_Model):
+
+    def __init__(self):
         model = None
