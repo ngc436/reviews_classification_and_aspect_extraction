@@ -3,7 +3,7 @@
 from keras.layers import Input, Dense, \
     Embedding, Conv2D, MaxPool2D, Reshape, \
     Flatten, Dropout, Concatenate, Convolution1D, MaxPooling1D, \
-    LSTM, RepeatVector
+    LSTM, RepeatVector, Activation
 from keras.optimizers import Adam
 from keras.models import Model
 import logging
@@ -186,7 +186,7 @@ class CNN_model(Base_Model):
 
     def simple_train(self, domain_name, vocab, x_train, y_train, x_test, y_test, max_len,
                      batch_size=32, num_epochs=10, max_num_of_words=20000):
-
+        print('Training process has begun')
         checkpoint = ModelCheckpoint('weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
                                      verbose=1, save_best_only=True, mode='auto')
         early_stop = EarlyStopping(monitor='val_acc', patience=5, mode='max')
@@ -194,7 +194,6 @@ class CNN_model(Base_Model):
         # TODO: tune optimizer parameters
         self.model.compile(optimizer=Adam(lr=1e-3), loss=losses.categorical_crossentropy,
                            metrics=['accuracy'])
-
 
         vocab_inv = {}
         for w, ind in vocab.items():
@@ -228,7 +227,6 @@ class CNN_2D(Base_Model):
         # w2v_model
         input = Input(shape=(embedding_dim, None, None))
 
-
     def create_model(self, *args):
         raise NotImplementedError
 
@@ -247,11 +245,16 @@ class LSTM_model(Base_Model):
     # tokenizer = Tokenizer(num_words=MAX_WORDS_TO_USE
     #
 
-    def create_model(self, max_sentence_len):
+    def create_model(self, max_sentence_len, max_words, max_len):
         # TODO: difference max_sentence_len vs max_words
 
         inputs = Input(shape=(max_sentence_len,), name='inputs')
-        embedding_layer = Embedding()
+        embedding_layer = Embedding(max_words, 50, input_length=max_len)(inputs)
+        layer = LSTM(64)(embedding_layer)
+        layer = Activation('relu')(layer)
+        layer = Dropout(0.5)(layer)
+        layer = Dense(1, name='out_layer')(layer)
+        self.model = Model(inputs=inputs, outputs=layer)
 
 
 class CNN_DAE(Base_Model):
@@ -293,4 +296,3 @@ class VAE(Base_Model):
 
     def __init__(self):
         model = None
-

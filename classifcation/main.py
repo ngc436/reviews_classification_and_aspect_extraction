@@ -75,8 +75,10 @@ def main():
     train_x = codecs.open(source, 'r', 'utf-8')
     source = '%s/%s/%s.csv' % (IO_DIR, 'amazon', 'test')
     test_x = codecs.open(source, 'r', 'utf-8')
-    train_x, test_x = prepare_input_sequences(train_x, test_x, type='w2v_mean')
-    #train_x, test_x = prepare_input_sequences(train_x, test_x, max_len=max_len, type='freq_seq')
+    # train_x, test_x = prepare_input_sequences(train_x, test_x, type='w2v_mean')
+
+    # train_x, test_x =
+    # train_x, test_x = prepare_input_sequences(train_x, test_x, max_len=max_len, type='freq_seq')
 
     nn_model.simple_train('amazon', vocab, train_x, train_y,
                           test_x, test_y, max_len)

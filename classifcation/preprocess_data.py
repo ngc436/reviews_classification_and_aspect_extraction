@@ -87,6 +87,9 @@ def batch_iterator(data, batch_size, num_epoch, shuffle=True):
             end = min((i + 1) * batch_size, data_size)
             yield shuffled_data[start:end]
 
+#TODO: add simple binary vector representation of sentences
+def prepare_binary_vectors(train_x, test_x):
+    raise NotImplementedError
 
 def prepare_input_sequences(train_x, test_x, type, max_len=0, max_num_of_words=10000):
     if type == 'w2v_mean':
