@@ -207,7 +207,7 @@ class CNN_model(Base_Model):
         embedding_layer = self.model.get_layer("word_embedding")
         embedding_layer.set_weights([weights])
         self.model.fit(x_train, y_train, batch_size=batch_size, epochs=num_epochs,
-                       validation_data=(x_test, y_test), verbose=2, callbacks=callbacks_list)
+                       validation_data=(x_test, y_test), verbose=1, callbacks=callbacks_list)
 
     def train_on_embeddings(self, embedding_type='w2v'):
         assert embedding_type in ['pretrained_w2v', 'w2v', 'glove']

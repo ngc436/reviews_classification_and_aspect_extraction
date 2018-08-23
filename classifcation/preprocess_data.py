@@ -1,6 +1,7 @@
 # domain_name.train_data
 
 import pymystem3
+from tqdm import tqdm
 
 from nltk.stem import PorterStemmer, WordNetLemmatizer
 import nltk
@@ -100,13 +101,16 @@ def prepare_input_sequences(train_x, test_x, type, max_len=0, max_num_of_words=1
 def _w2v_mean_preparation(train_x, test_x, w2v_model):
     new_train_x = []
     new_test_x = []
-    for sentence in train_x:
-        print(w2v_model.get_w2v_mean(sentence))
-        new_train_x.append(w2v_model.get_w2v_mean(sentence))
-        break
-    for sentence in test_x:
+    print('Preparing w2v_mean vectors...')
+    for sentence in tqdm(test_x):
         new_test_x.append(w2v_model.get_w2v_mean(sentence))
-    return np.array(new_train_x), np.array(new_test_x)
+    print('Test set: success')
+    for sentence in tqdm(train_x):
+        new_train_x.append(w2v_model.get_w2v_mean(sentence))
+    print('Train set: success')
+    np_train = np.array(new_train_x)
+    np_test = np.array(new_test_x)
+    return np.squeeze(np_train, axis=1), np.squeeze(np_test, axis=1)
 
 
 def _freq_seq_preparation(train_x, test_x, max_len, max_num_of_words=1000):

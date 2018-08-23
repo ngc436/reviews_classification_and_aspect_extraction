@@ -51,6 +51,7 @@ def main():
     # model.create_model('amazon')
 
     nn_model = CNN_model()
+    # read_data outputs frequency vectors
     vocab, train_x, test_x, max_len = read_data('amazon')
 
     # TODO: refactor this
@@ -70,8 +71,12 @@ def main():
     nn_model.create_model(vocab, max_len)
     nn_model.model.get_layer('word_embedding').trainable = False
 
-    train_x, test_x = prepare_input_sequences(train_x, test_x, max_len=max_len, type='freq_seq')
-    # train_x, test_x = prepare_input_sequences(train_x, test_x, type='freq_seq')
+    source = '%s/%s/%s.csv' % (IO_DIR, 'amazon', 'train')
+    train_x = codecs.open(source, 'r', 'utf-8')
+    source = '%s/%s/%s.csv' % (IO_DIR, 'amazon', 'test')
+    test_x = codecs.open(source, 'r', 'utf-8')
+    train_x, test_x = prepare_input_sequences(train_x, test_x, type='w2v_mean')
+    #train_x, test_x = prepare_input_sequences(train_x, test_x, max_len=max_len, type='freq_seq')
 
     nn_model.simple_train('amazon', vocab, train_x, train_y,
                           test_x, test_y, max_len)

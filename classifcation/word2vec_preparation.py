@@ -71,9 +71,7 @@ class w2v_model:
         num_words_in_vocab = 0
         for word in text.split():
             try:
-                vec += np.append(self.model[word])
-                print(vec)
-                break
+                vec += self.model[word]
                 num_words_in_vocab += 1
             except KeyError:
                 continue
