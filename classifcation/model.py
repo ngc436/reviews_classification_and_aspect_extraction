@@ -194,6 +194,7 @@ class CNN_model(Base_Model):
         # TODO: tune optimizer parameters
         self.model.compile(optimizer=Adam(lr=1e-3), loss=losses.categorical_crossentropy,
                            metrics=['accuracy'])
+        print(self.model.summary())
 
         vocab_inv = {}
         for w, ind in vocab.items():

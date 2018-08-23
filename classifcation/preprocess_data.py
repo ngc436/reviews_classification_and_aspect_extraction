@@ -116,9 +116,11 @@ def _w2v_mean_preparation(train_x, test_x, w2v_model):
     return np.squeeze(np_train, axis=1), np.squeeze(np_test, axis=1)
 
 
-def _freq_seq_preparation(train_x, test_x, max_len, max_num_of_words=1000):
+def _freq_seq_preparation(train_x, test_x, max_len, max_num_of_words=10000):
+    print('Tokenizer starts... ')
     tokenizer = Tokenizer(num_words=max_num_of_words)
     tokenizer.fit_on_texts(train_x + test_x)
+    print('Fitting is done')
     x_train = tokenizer.texts_to_sequences(train_x)
     x_test = tokenizer.texts_to_sequences(test_x)
     # transforms a list of num_samples sequences into 2D np.array shape (num_samples, num_timesteps)

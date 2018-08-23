@@ -71,14 +71,26 @@ def main():
     nn_model.create_model(vocab, max_len)
     nn_model.model.get_layer('word_embedding').trainable = False
 
+    print('Transforming train data to list')
     source = '%s/%s/%s.csv' % (IO_DIR, 'amazon', 'train')
     train_x = codecs.open(source, 'r', 'utf-8')
+    new_train_x = []
+    for line in train_x:
+        new_train_x.append(line.split())
+    train_x = new_train_x
+
+    print('Transforming test data to list')
     source = '%s/%s/%s.csv' % (IO_DIR, 'amazon', 'test')
     test_x = codecs.open(source, 'r', 'utf-8')
+    new_test_x = []
+    for line in test_x:
+        new_test_x.append(line.split())
+    test_x = new_test_x
+
     # train_x, test_x = prepare_input_sequences(train_x, test_x, type='w2v_mean')
 
     # train_x, test_x =
-    # train_x, test_x = prepare_input_sequences(train_x, test_x, max_len=max_len, type='freq_seq')
+    train_x, test_x = prepare_input_sequences(train_x, test_x, max_len=max_len, type='freq_seq')
 
     nn_model.simple_train('amazon', vocab, train_x, train_y,
                           test_x, test_y, max_len)
