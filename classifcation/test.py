@@ -9,4 +9,12 @@ source = '%s/%s/%s.csv' % (IO_DIR, 'amazon', 'test')
 test_x = codecs.open(source, 'r', 'utf-8')
 train_x, test_x = prepare_input_sequences(train_x, test_x, type='w2v_mean')
 
+y_train = [0,0,0,0,0]
+for i in genfromtxt('data_dir/amazon/y_train.csv', delimiter=','):
+    y_train.append([int(i)])
+
+y_test = [0,0,0,0,0]
+for i in genfromtxt('data_dir/amazon/y_train.csv', delimiter=','):
+    y_train.append([int(i)])
+
 
