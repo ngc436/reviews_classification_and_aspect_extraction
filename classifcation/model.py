@@ -3,7 +3,7 @@
 from keras.layers import Input, Dense, \
     Embedding, Conv2D, MaxPool2D, Reshape, \
     Flatten, Dropout, Concatenate, Convolution1D, MaxPooling1D, \
-    LSTM, RepeatVector, Activation
+    LSTM, RepeatVector, Activation, Conv1D, GlobalMaxPooling1D
 from keras.optimizers import Adam
 from keras.models import Model, Sequential
 import logging
@@ -149,6 +149,45 @@ class CNN_model(Base_Model):
         # TODO: remove hardcore
         model_output = Dense(5, activation="sigmoid")(output)
         self.model = Model(inputs=inputs, outputs=model_output)
+
+    def create_imdb_model(self):
+        max_features = 10000
+        maxlen = 500
+        embedding_dims = 50
+        filters = 250
+        kernel_size = 3
+        hidden_dims = 250
+        print('Build model...')
+        self.model = Sequential()
+        self.model.add(Embedding(max_features,
+                            embedding_dims,
+                            input_length=maxlen))
+        self.model.add(Dropout(0.2))
+        self.model.add(Conv1D(filters,
+                         kernel_size,
+                         padding='valid',
+                         activation='relu',
+                         strides=1))
+        self.model.add(GlobalMaxPooling1D())
+
+        # Add a vanilla hidden layer:
+        self.model.add(Dense(hidden_dims))
+        self.model.add(Dropout(0.2))
+        self.model.add(Activation('relu'))
+        self.model.add(Dense(1))
+        self.model.add(Activation('sigmoid'))
+        self.model.compile(loss='binary_crossentropy',
+                      optimizer='adam',
+                      metrics=['accuracy'])
+
+    def fit_imdb_model(self, train_x, train_y, test_x, test_y):
+        batch_size = 32
+        epochs = 2
+        self.model.fit(train_x, train_y,
+                  batch_size=batch_size,
+                  epochs=epochs,
+                  validation_data=(test_x, test_y))
+
 
     def _init_weights(self, domain_name, vocab_inv):
 
