@@ -11,7 +11,7 @@ from keras.preprocessing import sequence
 from classifcation.model import CNN_model
 from numpy import genfromtxt
 from keras.utils import to_categorical
-
+from sklearn.model_selection import StratifiedKFold
 
 def main():
     # TODO: load all data + implement cross-validation
@@ -89,11 +89,18 @@ def main():
 
     # train_x, test_x = prepare_input_sequences(train_x, test_x, type='w2v_mean')
 
-    # train_x, test_x =
-    train_x, test_x = prepare_input_sequences(train_x, test_x, max_len=max_len, type='freq_seq')
+    # train_x, test_x = prepare_input_sequences(train_x, test_x, max_len=max_len, type='freq_seq')
 
-    nn_model.simple_train('amazon', vocab, train_x, train_y,
-                          test_x, test_y, max_len)
+    # np.save('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'train_x_pad'), train_x)
+    # np.save('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'test_x_pad'), test_x)
+    train_x = np.load('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'train_x_pad'))
+    test_x = np.load('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'test_x_pad'))
+
+    # cross validation section
+    # skf = StratifiedKFold(indices, n_folds=n_folds, shuffle=True)
+
+    nn_model.simple_train('amazon', vocab, train_x, train_y, test_x,
+                          test_y, max_len)
 
     # nn_model.train_model(train_x, )
     # transforms a list of num_samples sequences into 2D np.array shape (num_samples, num_timesteps)

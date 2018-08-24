@@ -10,6 +10,7 @@ from nltk.corpus import stopwords
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing import sequence
 from classifcation.word2vec_preparation import w2v_model
+from sklearn.preprocessing import OneHotEncoder
 # nltk.download('stopwords')
 # nltk.download('averaged_perceptron_tagger')
 # nltk.download('wordnet')
@@ -59,6 +60,8 @@ def process_similarity(w2v_model, word):
         return None
     return sim
 
+def create_document_with_similarity_replacement():
+    raise NotImplementedError
 
 def tokens_to_text(tokens):
     return " ".join(tokens)
@@ -98,6 +101,8 @@ def prepare_input_sequences(train_x, test_x, type, max_len=0, max_num_of_words=1
         train_x, test_x = _w2v_mean_preparation(train_x, test_x, model)
     if type == 'freq_seq':
         train_x, test_x = _freq_seq_preparation(train_x, test_x, max_len, max_num_of_words=max_num_of_words)
+    if type == 'bow':
+        train_x, test_x = _bow_preparation(train_x, test_x)
     return train_x, test_x
 
 
@@ -129,3 +134,12 @@ def _freq_seq_preparation(train_x, test_x, max_len, max_num_of_words=10000):
     x_test = sequence.pad_sequences(x_test, maxlen=max_len, padding='post', truncating='post')
     print('Size of test set: %i' % len(x_test))
     return x_train, x_test
+
+# simple document representation => sum of one-hot text vectors
+def _bow_preparation(train_x, test_x, vocab):
+    enc = OneHotEncoder()
+    enc.fit(vocab)
+
+
+    # TODO: search for similar words
+    raise NotImplementedError

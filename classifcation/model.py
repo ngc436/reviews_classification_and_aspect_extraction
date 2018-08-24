@@ -84,6 +84,11 @@ def get_callbacks(name_weights, patience_lr):
     reduce_lr_loss = ReduceLROnPlateau(montor='loss', factor=0.1, patience=patience_lr,
                                        verbose=1, epsilon=1e-4, mode='min')
 
+def _get_vocabulary_inv(vocab):
+    vocab_inv = {}
+    for w, ind in vocab.items():
+        vocab_inv[ind] = w
+    return vocab_inv
 
 class Base_Model:
 
@@ -144,6 +149,16 @@ class CNN_model(Base_Model):
         model_output = Dense(5, activation="sigmoid")(output)
         self.model = Model(inputs=inputs, outputs=model_output)
 
+    def _init_weights(self, domain_name, vocab_inv):
+
+        embedding_model = Word2Vec.load('%s/%s/w2v_embedding' % (IO_DIR, domain_name))
+        embedding_weights = {key: embedding_model[word] if word in embedding_model else
+        np.random.uniform(-0.25, 0.25, embedding_model.vector_size)
+                             for key, word in vocab_inv.items()}
+        weights = np.array([v for v in embedding_weights.values()])
+        embedding_layer = self.model.get_layer("word_embedding")
+        embedding_layer.set_weights([weights])
+
     def train_model(self, x_train, y_train, x_test, y_test, vocab, epochs=100, batch_size=100, max_len=0,
                     max_num_of_words=1000):
         checkpoint = ModelCheckpoint('weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
@@ -191,23 +206,17 @@ class CNN_model(Base_Model):
                                      verbose=1, save_best_only=True, mode='auto')
         early_stop = EarlyStopping(monitor='val_acc', patience=5, mode='max')
         callbacks_list = [checkpoint, early_stop]
+
         # TODO: tune optimizer parameters
         self.model.compile(optimizer=Adam(lr=1e-3), loss=losses.categorical_crossentropy,
                            metrics=['accuracy'])
         print(self.model.summary())
 
-        vocab_inv = {}
-        for w, ind in vocab.items():
-            vocab_inv[ind] = w
-        embedding_model = Word2Vec.load('%s/%s/w2v_embedding' % (IO_DIR, domain_name))
-        embedding_weights = {key: embedding_model[word] if word in embedding_model else
-        np.random.uniform(-0.25, 0.25, embedding_model.vector_size)
-                             for key, word in vocab_inv.items()}
-        weights = np.array([v for v in embedding_weights.values()])
-        embedding_layer = self.model.get_layer("word_embedding")
-        embedding_layer.set_weights([weights])
+        vocab_inv = _get_vocabulary_inv(vocab)
+        # self._init_weights(domain_name, vocab_inv)
         self.model.fit(x_train, y_train, batch_size=batch_size, epochs=num_epochs,
                        validation_data=(x_test, y_test), verbose=1, callbacks=callbacks_list)
+
 
     def train_on_embeddings(self, embedding_type='w2v'):
         assert embedding_type in ['pretrained_w2v', 'w2v', 'glove']
@@ -247,8 +256,8 @@ class LSTM_model(Base_Model):
     #
 
     def create_model(self, max_sentence_len, max_words, max_len):
-        # TODO: difference max_sentence_len vs max_words
 
+        # TODO: difference max_sentence_len vs max_words
         inputs = Input(shape=(max_sentence_len,), name='inputs')
         embedding_layer = Embedding(max_words, 50, input_length=max_len)(inputs)
         layer = LSTM(64)(embedding_layer)
