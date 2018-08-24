@@ -89,10 +89,12 @@ def main():
 
     # train_x, test_x = prepare_input_sequences(train_x, test_x, type='w2v_mean')
 
-    # train_x, test_x = prepare_input_sequences(train_x, test_x, max_len=max_len, type='freq_seq')
+    # train_x, test_x = prepare_input_sequences(train_x, test_x, max_len=max_len, type='freq_seq', max_num_of_words=100000)
 
-    # np.save('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'train_x_pad'), train_x)
-    # np.save('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'test_x_pad'), test_x)
+    # np.save('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'train_x_pad_100000'), train_x)
+    # np.save('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'test_x_pad_100000'), test_x)
+
+
     train_x = np.load('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'train_x_pad'))
     test_x = np.load('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'test_x_pad'))
 

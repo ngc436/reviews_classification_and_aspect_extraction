@@ -5,7 +5,7 @@ from keras.layers import Input, Dense, \
     Flatten, Dropout, Concatenate, Convolution1D, MaxPooling1D, \
     LSTM, RepeatVector, Activation
 from keras.optimizers import Adam
-from keras.models import Model
+from keras.models import Model, Sequential
 import logging
 from keras import losses
 from keras import backend as k
@@ -22,6 +22,7 @@ from keras.preprocessing import sequence
 from keras.preprocessing.text import Tokenizer
 from sklearn.model_selection import StratifiedKFold
 from gensim.models import Word2Vec
+from classifcation.vis_tools.vis import *
 
 IO_DIR = 'data_dir'
 
@@ -29,7 +30,7 @@ IO_DIR = 'data_dir'
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
-config.gpu_options.per_process_gpu_memory_fraction = 0.5
+config.gpu_options.per_process_gpu_memory_fraction = 0.8
 k.tensorflow_backend.set_session(tf.Session(config=config))
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s % %(levelname)s %(message)s')
@@ -72,8 +73,6 @@ def sentence_batch_generator(data, batch_size=64, num_classes=5, labels=None):
         batch_count += 1
         yield batch, y
 
-    # while
-
 
 def max_margin_loss(y_true, y_pred):
     return k.mean(y_pred)
@@ -84,11 +83,13 @@ def get_callbacks(name_weights, patience_lr):
     reduce_lr_loss = ReduceLROnPlateau(montor='loss', factor=0.1, patience=patience_lr,
                                        verbose=1, epsilon=1e-4, mode='min')
 
+
 def _get_vocabulary_inv(vocab):
     vocab_inv = {}
     for w, ind in vocab.items():
         vocab_inv[ind] = w
     return vocab_inv
+
 
 class Base_Model:
 
@@ -205,18 +206,18 @@ class CNN_model(Base_Model):
         checkpoint = ModelCheckpoint('weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
                                      verbose=1, save_best_only=True, mode='auto')
         early_stop = EarlyStopping(monitor='val_acc', patience=5, mode='max')
-        callbacks_list = [checkpoint, early_stop]
+        plot_losses = PlotLosses()
+        callbacks_list = [checkpoint, early_stop, plot_losses]
 
         # TODO: tune optimizer parameters
-        self.model.compile(optimizer=Adam(lr=1e-3), loss=losses.categorical_crossentropy,
+        self.model.compile(optimizer=Adam(lr=1e-4), loss=losses.categorical_crossentropy,
                            metrics=['accuracy'])
         print(self.model.summary())
 
         vocab_inv = _get_vocabulary_inv(vocab)
         # self._init_weights(domain_name, vocab_inv)
-        self.model.fit(x_train, y_train, batch_size=batch_size, epochs=num_epochs,
-                       validation_data=(x_test, y_test), verbose=1, callbacks=callbacks_list)
-
+        history = self.model.fit(x_train, y_train, batch_size=batch_size, epochs=num_epochs,
+                                 validation_data=(x_test, y_test), verbose=1, callbacks=callbacks_list)
 
     def train_on_embeddings(self, embedding_type='w2v'):
         assert embedding_type in ['pretrained_w2v', 'w2v', 'glove']
@@ -256,7 +257,6 @@ class LSTM_model(Base_Model):
     #
 
     def create_model(self, max_sentence_len, max_words, max_len):
-
         # TODO: difference max_sentence_len vs max_words
         inputs = Input(shape=(max_sentence_len,), name='inputs')
         embedding_layer = Embedding(max_words, 50, input_length=max_len)(inputs)
@@ -265,6 +265,10 @@ class LSTM_model(Base_Model):
         layer = Dropout(0.5)(layer)
         layer = Dense(1, name='out_layer')(layer)
         self.model = Model(inputs=inputs, outputs=layer)
+
+    def create_simple_example(self, max_features):
+        model = Sequential()
+        model.add(Embedding(max_features, 128))
 
 
 class CNN_DAE(Base_Model):

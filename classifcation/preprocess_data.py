@@ -10,7 +10,7 @@ from nltk.corpus import stopwords
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing import sequence
 from classifcation.word2vec_preparation import w2v_model
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 # nltk.download('stopwords')
 # nltk.download('averaged_perceptron_tagger')
 # nltk.download('wordnet')
@@ -60,8 +60,10 @@ def process_similarity(w2v_model, word):
         return None
     return sim
 
+
 def create_document_with_similarity_replacement():
     raise NotImplementedError
+
 
 def tokens_to_text(tokens):
     return " ".join(tokens)
@@ -90,9 +92,11 @@ def batch_iterator(data, batch_size, num_epoch, shuffle=True):
             end = min((i + 1) * batch_size, data_size)
             yield shuffled_data[start:end]
 
-#TODO: add simple binary vector representation of sentences
+
+# TODO: add simple binary vector representation of sentences
 def prepare_binary_vectors(train_x, test_x):
     raise NotImplementedError
+
 
 def prepare_input_sequences(train_x, test_x, type, max_len=0, max_num_of_words=10000):
     if type == 'w2v_mean':
@@ -102,7 +106,7 @@ def prepare_input_sequences(train_x, test_x, type, max_len=0, max_num_of_words=1
     if type == 'freq_seq':
         train_x, test_x = _freq_seq_preparation(train_x, test_x, max_len, max_num_of_words=max_num_of_words)
     if type == 'bow':
-        train_x, test_x = _bow_preparation(train_x, test_x)
+        train_x, test_x = _bow_preparation(train_x, test_x, max_len)
     return train_x, test_x
 
 
@@ -121,7 +125,7 @@ def _w2v_mean_preparation(train_x, test_x, w2v_model):
     return np.squeeze(np_train, axis=1), np.squeeze(np_test, axis=1)
 
 
-def _freq_seq_preparation(train_x, test_x, max_len, max_num_of_words=10000):
+def _freq_seq_preparation(train_x, test_x, max_len, max_num_of_words):
     print('Tokenizer starts... ')
     tokenizer = Tokenizer(num_words=max_num_of_words)
     tokenizer.fit_on_texts(train_x + test_x)
@@ -135,11 +139,14 @@ def _freq_seq_preparation(train_x, test_x, max_len, max_num_of_words=10000):
     print('Size of test set: %i' % len(x_test))
     return x_train, x_test
 
-# simple document representation => sum of one-hot text vectors
-def _bow_preparation(train_x, test_x, vocab):
-    enc = OneHotEncoder()
-    enc.fit(vocab)
 
+# simple document representation => sum of one-hot text vectors
+def _bow_preparation(train_x, test_x, max_len):
+    le = LabelEncoder(train_x + test_x)
+    le.fit()
+    # change size to max_len
+    enc = OneHotEncoder()
+    enc.fit(train_x + test_x)
+    return enc.transform(train_x).toarray(), enc.transform()
 
     # TODO: search for similar words
-    raise NotImplementedError
