@@ -44,7 +44,22 @@ def plot_distributions(train, test, title='Rating distribution in Amazon dataset
 
 
 def plot_len_distribution(length_list, fname):
-    raise NotImplementedError
+    trace = [
+        go.Histogram(
+            x=length_list
+        )
+    ]
+    layout = go.Layout(
+        title='Distribution of positive reviews lengths',
+        xaxis=dict(
+            title='Length of review'
+        ),
+        yaxis=dict(
+            title='Number of reviews'
+        )
+    )
+    fig = go.Figure(data=trace, layout=layout)
+    image.save_as(fig, filename=''.join([FIG_DIR, fname, '.jpeg']))
 
 
 def plot_keras_model(model, fname, show_shapes=False, show_layer_names=True):

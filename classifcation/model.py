@@ -318,7 +318,7 @@ class LSTM_model(Base_Model):
         print(self.model.summary())
 
     def train_model(self, vocab, x_train, y_train, x_test, y_test, max_len,
-                     batch_size=64, num_epochs=10, max_num_of_words=20000):
+                    batch_size=64, num_epochs=10, max_num_of_words=20000):
         print('Training process has begun')
         checkpoint = ModelCheckpoint('weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
                                      verbose=1, save_best_only=True, mode='auto')
@@ -332,6 +332,9 @@ class LSTM_model(Base_Model):
         history = self.model.fit(x_train, y_train, batch_size=batch_size, epochs=num_epochs,
                                  validation_data=(x_test, y_test), verbose=1, callbacks=callbacks_list)
 
+    def load_weights(self, fname):
+        self.model.load_weights(fname)
+
 
 class CNN_DAE(Base_Model):
 
@@ -340,6 +343,26 @@ class CNN_DAE(Base_Model):
 
     def create_model(self):
         pass
+
+
+# successful for image classification
+# introduced residual connections
+class ResNet101(Base_Model):
+
+    def __init__(self):
+        model = None
+
+    def _identity_block(self):
+        raise NotImplementedError
+
+    def _convolutional_block(self):
+        raise NotImplementedError
+
+    def create_model(self, input_shape=None):
+        # TODO: decide on input shape, in case of images (x_dim > 197, y_dim > 197, channels == 3)
+        input_shape = input_shape #_obtain_input_shape(input_shape)
+
+        raise NotImplementedError
 
 
 class CNN_AE(Base_Model):
@@ -371,4 +394,16 @@ class LSTM_AE(Base_Model):
 class VAE(Base_Model):
 
     def __init__(self):
+        encoder = None
+        decoder = None
         model = None
+
+    def create_model(self):
+        inputs = Input(shape)
+
+    # reparametrization trick
+    def sampling(self, z_mean, z_log_var):
+        batch = k.shape(z_mean)[0]
+        dim = k.int_shape(z_mean)[1]
+        eps = k.random_normal(shape=(batch, dim))
+        return z_mean + k.exp(0.5 * z_log_var) * eps
