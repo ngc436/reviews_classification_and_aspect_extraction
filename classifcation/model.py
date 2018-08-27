@@ -3,7 +3,7 @@
 from keras.layers import Input, Dense, \
     Embedding, Conv2D, MaxPool2D, Reshape, \
     Flatten, Dropout, Concatenate, Convolution1D, MaxPooling1D, \
-    LSTM, RepeatVector, Activation
+    LSTM, RepeatVector, Activation, Conv1D, GlobalMaxPooling1D
 from keras.optimizers import Adam
 from keras.models import Model, Sequential
 import logging
@@ -108,7 +108,6 @@ class Base_Model:
 class CNN_model(Base_Model):
 
     def __init__(self):
-        # sequence_length =
         model = None
 
     def create_model(self, vocabulary, max_sentence_len=0, embedding_dim=300,
@@ -149,6 +148,44 @@ class CNN_model(Base_Model):
         # TODO: remove hardcore
         model_output = Dense(5, activation="sigmoid")(output)
         self.model = Model(inputs=inputs, outputs=model_output)
+
+    def create_imdb_model(self):
+        max_features = 10000
+        maxlen = 500
+        embedding_dims = 50
+        filters = 250
+        kernel_size = 3
+        hidden_dims = 250
+        print('Build model...')
+        self.model = Sequential()
+        self.model.add(Embedding(max_features,
+                                 embedding_dims,
+                                 input_length=maxlen))
+        self.model.add(Dropout(0.2))
+        self.model.add(Conv1D(filters,
+                              kernel_size,
+                              padding='valid',
+                              activation='relu',
+                              strides=1))
+        self.model.add(GlobalMaxPooling1D())
+
+        # Add a vanilla hidden layer:
+        self.model.add(Dense(hidden_dims))
+        self.model.add(Dropout(0.2))
+        self.model.add(Activation('relu'))
+        self.model.add(Dense(1))
+        self.model.add(Activation('sigmoid'))
+        self.model.compile(loss='binary_crossentropy',
+                           optimizer='adam',
+                           metrics=['accuracy'])
+
+    def fit_imdb_model(self, train_x, train_y, test_x, test_y):
+        batch_size = 32
+        epochs = 2
+        self.model.fit(train_x, train_y,
+                       batch_size=batch_size,
+                       epochs=epochs,
+                       validation_data=(test_x, test_y))
 
     def _init_weights(self, domain_name, vocab_inv):
 
@@ -266,9 +303,37 @@ class LSTM_model(Base_Model):
         layer = Dense(1, name='out_layer')(layer)
         self.model = Model(inputs=inputs, outputs=layer)
 
-    def create_simple_example(self, max_features):
-        model = Sequential()
-        model.add(Embedding(max_features, 128))
+    # conv layer helps to speed up the computations
+    def create_model_with_conv_layer(self, vocabulary_size, max_len, embedding_dim=200):
+        model_conv = Sequential()
+        model_conv.add(Embedding(vocabulary_size, embedding_dim, input_length=max_len))
+        model_conv.add(Dropout(0.2))
+        model_conv.add(Convolution1D(64, 5, activation='relu'))
+        model_conv.add(MaxPooling1D(pool_size=4))
+        model_conv.add(LSTM(100))
+        model_conv.add(Dense(5, activation='sigmoid'))
+        model_conv.compile(loss=losses.categorical_crossentropy, optimizer='adam', metrics=['accuracy'])
+        print('Model summary')
+        self.model = model_conv
+        print(self.model.summary())
+
+    def train_model(self, vocab, x_train, y_train, x_test, y_test, max_len,
+                    batch_size=64, num_epochs=10, max_num_of_words=20000):
+        print('Training process has begun')
+        checkpoint = ModelCheckpoint('weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
+                                     verbose=1, save_best_only=True, mode='auto')
+        early_stop = EarlyStopping(monitor='val_acc', patience=5, mode='max')
+        plot_losses = PlotLosses()
+        callbacks_list = [checkpoint, early_stop, plot_losses]
+
+        # TODO: tune optimizer parameters
+        vocab_inv = _get_vocabulary_inv(vocab)
+        # self._init_weights(domain_name, vocab_inv)
+        history = self.model.fit(x_train, y_train, batch_size=batch_size, epochs=num_epochs,
+                                 validation_data=(x_test, y_test), verbose=1, callbacks=callbacks_list)
+
+    def load_weights(self, fname):
+        self.model.load_weights(fname)
 
 
 class CNN_DAE(Base_Model):
@@ -278,6 +343,26 @@ class CNN_DAE(Base_Model):
 
     def create_model(self):
         pass
+
+
+# successful for image classification
+# introduced residual connections
+class ResNet101(Base_Model):
+
+    def __init__(self):
+        model = None
+
+    def _identity_block(self):
+        raise NotImplementedError
+
+    def _convolutional_block(self):
+        raise NotImplementedError
+
+    def create_model(self, input_shape=None):
+        # TODO: decide on input shape, in case of images (x_dim > 197, y_dim > 197, channels == 3)
+        input_shape = input_shape #_obtain_input_shape(input_shape)
+
+        raise NotImplementedError
 
 
 class CNN_AE(Base_Model):
@@ -309,4 +394,16 @@ class LSTM_AE(Base_Model):
 class VAE(Base_Model):
 
     def __init__(self):
+        encoder = None
+        decoder = None
         model = None
+
+    def create_model(self):
+        inputs = Input(shape)
+
+    # reparametrization trick
+    def sampling(self, z_mean, z_log_var):
+        batch = k.shape(z_mean)[0]
+        dim = k.int_shape(z_mean)[1]
+        eps = k.random_normal(shape=(batch, dim))
+        return z_mean + k.exp(0.5 * z_log_var) * eps

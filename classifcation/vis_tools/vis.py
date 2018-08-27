@@ -5,8 +5,9 @@ import plotly.graph_objs as go
 import matplotlib.pyplot as plt
 from keras.utils import plot_model
 from plotly.plotly import image
+import os
 
-FIG_DIR = 'Figures\\'
+FIG_DIR = '/'.join([os.getcwd(), 'vis_tools/Figures/'])
 
 
 # def visualize_weights(data):
@@ -15,7 +16,7 @@ FIG_DIR = 'Figures\\'
 #     )
 
 
-def plot_distributions(train, test):
+def plot_distributions(train, test, title='Rating distribution in Amazon dataset'):
     x = ['1', '2', '3', '4', '5']
     trace1 = go.Bar(
         x=x,
@@ -29,10 +30,36 @@ def plot_distributions(train, test):
     )
     data = [trace1, trace2]
     layout = go.Layout(
-        barmode='group'
+        title=title,
+        barmode='group',
+        yaxis=dict(
+            title='# of reviews'
+        ),
+        xaxis=dict(
+            title='Rating'
+        )
     )
     fig = go.Figure(data=data, layout=layout)
     image.save_as(fig, filename=''.join([FIG_DIR, 'rating_distribution', '.jpeg']))
+
+
+def plot_len_distribution(length_list, fname):
+    trace = [
+        go.Histogram(
+            x=length_list
+        )
+    ]
+    layout = go.Layout(
+        title='Distribution of positive reviews lengths',
+        xaxis=dict(
+            title='Length of review'
+        ),
+        yaxis=dict(
+            title='Number of reviews'
+        )
+    )
+    fig = go.Figure(data=trace, layout=layout)
+    image.save_as(fig, filename=''.join([FIG_DIR, fname, '.jpeg']))
 
 
 def plot_keras_model(model, fname, show_shapes=False, show_layer_names=True):
@@ -56,8 +83,9 @@ class PlotLosses(keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs={}):
         self.logs.append(logs)
         self.x.append(self.i)
+        #
         self.losses.append(logs.get('loss'))
-        self.val_losses.append(logs.get('loss'))
+        self.val_losses.append(logs.get('val_loss'))
         self.i += 1
 
         plt.plot(self.x, self.losses, label='loss')

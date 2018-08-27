@@ -11,6 +11,9 @@ from keras.preprocessing.text import Tokenizer
 from keras.preprocessing import sequence
 from classifcation.word2vec_preparation import w2v_model
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder
+
+import json
+
 # nltk.download('stopwords')
 # nltk.download('averaged_perceptron_tagger')
 # nltk.download('wordnet')
