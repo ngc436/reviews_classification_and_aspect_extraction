@@ -308,13 +308,14 @@ class LSTM_model(Base_Model):
         model_conv = Sequential()
         model_conv.add(Embedding(vocabulary_size, embedding_dim, input_length=max_len))
         model_conv.add(Dropout(0.2))
-        model_conv.add(Conv1D(64, 5, activation='relu'))
+        model_conv.add(Convolution1D(64, 5, activation='relu'))
         model_conv.add(MaxPooling1D(pool_size=4))
-        model_conv.add(Dense(1, activation='sigmoid'))
-        model_conv.compile(loss=losses.categorical_crossentropy, optimixer='adam', metrics=['accuracy'])
+        model_conv.add(LSTM(100))
+        model_conv.add(Dense(5, activation='sigmoid'))
+        model_conv.compile(loss=losses.categorical_crossentropy, optimizer='adam', metrics=['accuracy'])
         print('Model summary')
-        print(self.model.summary())
         self.model = model_conv
+        print(self.model.summary())
 
     def train_model(self, vocab, x_train, y_train, x_test, y_test, max_len,
                      batch_size=64, num_epochs=10, max_num_of_words=20000):
