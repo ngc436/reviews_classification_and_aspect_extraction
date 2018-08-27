@@ -23,4 +23,3 @@ for i in genfromtxt('data_dir/amazon/y_train.csv', delimiter=','):
 
 plot_distributions(y_train, y_test)
 
-# test imdb
