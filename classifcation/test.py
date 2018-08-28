@@ -4,7 +4,6 @@ from numpy import genfromtxt
 import pandas as pd
 from classifcation.preprocess_data import *
 from classifcation.vis_tools.vis import *
-import plotly
 
 # vocab, train_x, test_x, max_len = read_data('amazon')
 # source = '%s/%s/%s.csv' % (IO_DIR, 'amazon', 'train')
@@ -33,8 +32,19 @@ data = {'text': train_x, 'label': train_y}
 
 df = pd.DataFrame(data=data)
 
-df.where(df['label'] == 5, inplace=True)
+# df.where(df['label'] == 5, inplace=True)
 
-df['splitted'] = df['text'].apply(str.split)
+df['splitted'] = df['text'].apply(lambda x: x.split())
 df['text_len'] = df['splitted'].apply(len)
-plot_len_distribution(df['text_len'])
+
+# df = df[(df['label']==5)]
+#
+# plot_len_distribution(df['text_len'], 'Distribution of review lengths (5 star)')
+
+df = df[(df['label']==1)]
+
+plot_len_distribution(df['text_len'], 'Distribution of review lengths (1 star)')
+
+
+### Reviews of the same length generation for
+

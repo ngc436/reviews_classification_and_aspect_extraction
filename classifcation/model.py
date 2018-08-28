@@ -3,7 +3,9 @@
 from keras.layers import Input, Dense, \
     Embedding, Conv2D, MaxPool2D, Reshape, \
     Flatten, Dropout, Concatenate, Convolution1D, MaxPooling1D, \
-    LSTM, RepeatVector, Activation, Conv1D, GlobalMaxPooling1D
+    LSTM, RepeatVector, Activation, Conv1D, GlobalMaxPooling1D, \
+    BatchNormalization, Add
+from keras.engine import Layer, InputSpec
 from keras.optimizers import Adam
 from keras.models import Model, Sequential
 import logging
@@ -23,6 +25,8 @@ from keras.preprocessing.text import Tokenizer
 from sklearn.model_selection import StratifiedKFold
 from gensim.models import Word2Vec
 from classifcation.vis_tools.vis import *
+
+import tensorflow as tf
 
 IO_DIR = 'data_dir'
 
@@ -103,12 +107,30 @@ class Base_Model:
         raise NotImplementedError
 
 
+class KMaxPooling(Layer):
+
+    def __init__(self, k=1, sorted=True, **kwargs):
+        super().__init__(**kwargs)
+        self.input_spec = InputSpec(ndim=3)
+        self.k = k
+        self.sorted = sorted
+
+    def compute_output_shape(self, input_shape):
+        return (input_shape[0], self.k, input_shape[2])
+
+    def call(self, inputs):
+        swapped_dim_inputs = tf.transpose(inputs, [0, 2, 1])
+        high_k = tf.nn.highest_k(swapped_dim_inputs, k=self.k, sorted=self.sorted)[0]
+
+        return tf.transpose(high_k, [0, 2, 1])
+
+
 # TODO: perform model optimization
 
 class CNN_model(Base_Model):
 
     def __init__(self):
-        model = None
+        self.model = None
 
     def create_model(self, vocabulary, max_sentence_len=0, embedding_dim=300,
                      num_conv_filters=512, filter_size=None, drop=0.5):
@@ -360,7 +382,7 @@ class ResNet101(Base_Model):
 
     def create_model(self, input_shape=None):
         # TODO: decide on input shape, in case of images (x_dim > 197, y_dim > 197, channels == 3)
-        input_shape = input_shape #_obtain_input_shape(input_shape)
+        input_shape = input_shape  # _obtain_input_shape(input_shape)
 
         raise NotImplementedError
 
@@ -398,8 +420,8 @@ class VAE(Base_Model):
         decoder = None
         model = None
 
-    def create_model(self):
-        inputs = Input(shape)
+    def create_model(self, input_shape):
+        inputs = Input(input_shape)
 
     # reparametrization trick
     def sampling(self, z_mean, z_log_var):
@@ -407,3 +429,71 @@ class VAE(Base_Model):
         dim = k.int_shape(z_mean)[1]
         eps = k.random_normal(shape=(batch, dim))
         return z_mean + k.exp(0.5 * z_log_var) * eps
+
+
+class VRNN(Base_Model):
+
+    def __init__(self):
+        self.model = None
+
+    def create_model(self):
+        model = Sequential()
+        # encoder
+        # decoder
+        raise NotImplementedError
+        # inputs = Input()
+
+    def _nld_gauss(self, mean_1):
+        return
+
+
+# paper: Very Deep Convolutional Networks for Text Classification, 2017
+# http://www.aclweb.org/anthology/E17-1104
+class VDCNN(Base_Model):
+
+    def __init__(self):
+        self.model = None
+
+    def _identity(self):
+
+        raise NotImplementedError
+
+    def _conv_block(self, input, filters):
+
+        layer_1 = Conv1D(kernel_size=3, padding='same', )
+        batch_norm = BatchNormalization()(layer_1)
+        activate = Activation('relu')(batch_norm)
+
+        # layer_2
+
+    # operates at character level
+    def create_model(self, sequence_length=1024, output_dim=16, num_of_conv_blocks=None, conv_filters=None):
+        if not num_of_conv_blocks:
+            num_of_conv_blocks = [4, 4, 10, 10]
+        if not conv_filters:
+            conv_filters = [64, 128, 256, 512]
+
+        inputs = Input(shape=(sequence_length,), name='inputs')
+        # tensor generation of size (f_0, s)
+        char_embedding_layer = Embedding(input_dim=sequence_length, output_dim=output_dim)(inputs)
+        convolution_layer = Conv1D(filters=64, kernel_size=3, padding='same', name='conv')(char_embedding_layer)
+        # stack of temporal convolutional blocks
+        # 64
+        for _ in range(num_of_conv_blocks[0]):
+            inp =
+            conv = self._conv_block(input=inp, filters=conv_filters[0])
+            pass
+
+        # 128
+
+        # 256
+
+        # 512
+
+        # maxPooling
+        maxPooling_layer = KMa
+
+        self.model = Model(inputs=inputs, outputs=out, nalme='VDCNN')
+
+    def train_model(self):
+        raise NotImplementedError

@@ -5,7 +5,13 @@ import plotly.graph_objs as go
 import matplotlib.pyplot as plt
 from keras.utils import plot_model
 from plotly.plotly import image
+import jupyterlab
+import plotly.plotly as py
 import os
+# getplotlyoffline('http://cdn.plot.ly/plotly-latest.min.js')
+
+# import altair as alt
+
 
 FIG_DIR = '/'.join([os.getcwd(), 'vis_tools/Figures/'])
 
@@ -43,23 +49,36 @@ def plot_distributions(train, test, title='Rating distribution in Amazon dataset
     image.save_as(fig, filename=''.join([FIG_DIR, 'rating_distribution', '.jpeg']))
 
 
-def plot_len_distribution(length_list, fname):
-    trace = [
-        go.Histogram(
-            x=length_list
-        )
-    ]
-    layout = go.Layout(
-        title='Distribution of positive reviews lengths',
-        xaxis=dict(
-            title='Length of review'
-        ),
-        yaxis=dict(
-            title='Number of reviews'
-        )
-    )
-    fig = go.Figure(data=trace, layout=layout)
-    image.save_as(fig, filename=''.join([FIG_DIR, fname, '.jpeg']))
+def plot_len_distribution(column, plot_title):
+
+    plt.hist(column.values.tolist(), 100)
+    plt.title(plot_title)
+    plt.xlabel('Length of review')
+    plt.ylabel('Number of reviews')
+    plt.show()
+
+    # alt.Chart(column).mark_bar().encode(
+    #     alt.X("Length of review", bin=True),
+    #     y='count()',
+    # ).serve()
+
+    # trace = [
+    #     go.Histogram(
+    #         x=column,
+    #     )
+    # ]
+    # layout = go.Layout(
+    #     title='Distribution of positive reviews lengths',
+    #     xaxis=dict(
+    #         title='Length of review'
+    #     ),
+    #     yaxis=dict(
+    #         title='Number of reviews'
+    #     )
+    # )
+    # fig = go.Figure(data=trace, layout=layout)
+    # py.plot(fig, filename='simple-histogram')
+    # image.save_as(fig, filename=''.join([FIG_DIR, fname, '.jpeg']))
 
 
 def plot_keras_model(model, fname, show_shapes=False, show_layer_names=True):
