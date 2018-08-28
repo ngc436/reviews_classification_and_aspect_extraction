@@ -5,6 +5,7 @@ from keras.layers import Input, Dense, \
     Flatten, Dropout, Concatenate, Convolution1D, MaxPooling1D, \
     LSTM, RepeatVector, Activation, Conv1D, GlobalMaxPooling1D, \
     BatchNormalization, Add
+from keras.engine import Layer, InputSpec
 from keras.optimizers import Adam
 from keras.models import Model, Sequential
 import logging
@@ -24,6 +25,8 @@ from keras.preprocessing.text import Tokenizer
 from sklearn.model_selection import StratifiedKFold
 from gensim.models import Word2Vec
 from classifcation.vis_tools.vis import *
+
+import tensorflow as tf
 
 IO_DIR = 'data_dir'
 
@@ -102,6 +105,24 @@ class Base_Model:
 
     def predict(self, *args):
         raise NotImplementedError
+
+
+class KMaxPooling(Layer):
+
+    def __init__(self, k=1, sorted=True, **kwargs):
+        super().__init__(**kwargs)
+        self.input_spec = InputSpec(ndim=3)
+        self.k = k
+        self.sorted = sorted
+
+    def compute_output_shape(self, input_shape):
+        return (input_shape[0], self.k, input_shape[2])
+
+    def call(self, inputs):
+        swapped_dim_inputs = tf.transpose(inputs, [0, 2, 1])
+        high_k = tf.nn.highest_k(swapped_dim_inputs, k=self.k, sorted=self.sorted)[0]
+
+        return tf.transpose(high_k, [0, 2, 1])
 
 
 # TODO: perform model optimization
@@ -433,19 +454,22 @@ class VDCNN(Base_Model):
     def __init__(self):
         self.model = None
 
-    def _conv_block(self):
+    def _identity(self):
+
+        raise NotImplementedError
+
+    def _conv_block(self, input, filters):
 
         layer_1 = Conv1D(kernel_size=3, padding='same', )
         batch_norm = BatchNormalization()(layer_1)
         activate = Activation('relu')(batch_norm)
 
-        #layer_2
-
+        # layer_2
 
     # operates at character level
     def create_model(self, sequence_length=1024, output_dim=16, num_of_conv_blocks=None, conv_filters=None):
         if not num_of_conv_blocks:
-            num_of_conv_blocks = [5, 5, 2, 2]
+            num_of_conv_blocks = [4, 4, 10, 10]
         if not conv_filters:
             conv_filters = [64, 128, 256, 512]
 
@@ -456,9 +480,20 @@ class VDCNN(Base_Model):
         # stack of temporal convolutional blocks
         # 64
         for _ in range(num_of_conv_blocks[0]):
+            inp =
+            conv = self._conv_block(input=inp, filters=conv_filters[0])
             pass
 
+        # 128
 
+        # 256
+
+        # 512
+
+        # maxPooling
+        maxPooling_layer = KMa
+
+        self.model = Model(inputs=inputs, outputs=out, nalme='VDCNN')
 
     def train_model(self):
         raise NotImplementedError
