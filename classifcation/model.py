@@ -3,7 +3,8 @@
 from keras.layers import Input, Dense, \
     Embedding, Conv2D, MaxPool2D, Reshape, \
     Flatten, Dropout, Concatenate, Convolution1D, MaxPooling1D, \
-    LSTM, RepeatVector, Activation, Conv1D, GlobalMaxPooling1D
+    LSTM, RepeatVector, Activation, Conv1D, GlobalMaxPooling1D, \
+    BatchNormalization, Add
 from keras.optimizers import Adam
 from keras.models import Model, Sequential
 import logging
@@ -423,3 +424,41 @@ class VRNN(Base_Model):
 
     def _nld_gauss(self, mean_1):
         return
+
+
+# paper: Very Deep Convolutional Networks for Text Classification, 2017
+# http://www.aclweb.org/anthology/E17-1104
+class VDCNN(Base_Model):
+
+    def __init__(self):
+        self.model = None
+
+    def _conv_block(self):
+
+        layer_1 = Conv1D(kernel_size=3, padding='same', )
+        batch_norm = BatchNormalization()(layer_1)
+        activate = Activation('relu')(batch_norm)
+
+        #layer_2
+
+
+    # operates at character level
+    def create_model(self, sequence_length=1024, output_dim=16, num_of_conv_blocks=None, conv_filters=None):
+        if not num_of_conv_blocks:
+            num_of_conv_blocks = [5, 5, 2, 2]
+        if not conv_filters:
+            conv_filters = [64, 128, 256, 512]
+
+        inputs = Input(shape=(sequence_length,), name='inputs')
+        # tensor generation of size (f_0, s)
+        char_embedding_layer = Embedding(input_dim=sequence_length, output_dim=output_dim)(inputs)
+        convolution_layer = Conv1D(filters=64, kernel_size=3, padding='same', name='conv')(char_embedding_layer)
+        # stack of temporal convolutional blocks
+        # 64
+        for _ in range(num_of_conv_blocks[0]):
+            pass
+
+
+
+    def train_model(self):
+        raise NotImplementedError
