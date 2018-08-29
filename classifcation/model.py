@@ -6,12 +6,12 @@ from keras.layers import Input, Dense, \
     LSTM, RepeatVector, Activation, Conv1D, GlobalMaxPooling1D, \
     BatchNormalization, Add
 from keras.engine import Layer, InputSpec
-from keras.optimizers import Adam
+from keras.optimizers import Adam, SGD
 from keras.models import Model, Sequential
 import logging
 from keras import losses
 from keras import backend as k
-from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
+from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping, TensorBoard
 from tqdm import tqdm
 import os
 import numpy as np
@@ -40,6 +40,13 @@ logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s % %(levelname)s %(message)s')
 # TODO: add logging info messages
 logger = logging.getLogger(__name__)
+
+
+def save_model_to_json(model, fname):
+    model_json = model.to_json()
+    with open('%s/%s.json' % (IO_DIR, fname), "w") as json_file:
+        json_file.write(model_json)
+    print("Model saved as json")
 
 
 # data is passed as np array
@@ -454,20 +461,36 @@ class VDCNN(Base_Model):
     def __init__(self):
         self.model = None
 
-    def _identity(self):
+    def _identity(self, inputs, filters, kernel_size=3):
+        # 'same' padding to preserve dims
+        layer_1 = Conv1D(filters=filters, kernel_size=kernel_size, padding='same')(inputs)
+        batch_normalization_layer = BatchNormalization()(layer_1)
+        activation = Activation('relu')(batch_normalization_layer)
+        layer_2 = Conv1D(filters=filters, kernel_size=kernel_size, padding='same')(activation)
+        out = BatchNormalization(layer_2)
+        return Activation('relu')(out)
 
-        raise NotImplementedError
+    def _conv_block(self, inputs, filters, pool_type, stage, sorted=True, kernel_size=3):
 
-    def _conv_block(self, input, filters):
-
-        layer_1 = Conv1D(kernel_size=3, padding='same', )
+        layer_1 = Conv1D(kernel_size=kernel_size, padding='same', )
         batch_norm = BatchNormalization()(layer_1)
         activate = Activation('relu')(batch_norm)
+        layer_2 = Conv1D(filters=filters, kernel_size=kernel_size, padding='same')(activate)
+        inp = BatchNormalization()(layer_2)
+        inp = Activation('relu')(inp)
+        inp = self._dim_red(inp, pool_type=pool_type, sorted=sorted, stage=stage)
+        inp = Conv1D(filters=2 * filters, kernel_size=1, padding='same', name='1_1_conv_%d' % stage)(inp)
+        out = BatchNormalization(name='1_1_batch_normalization_%d' % stage)(inp)
+        return out
 
-        # layer_2
+    def _dim_red(self, inputs, pool_type, sorted, stage):
+        if pool_type == 'max':
+            out = MaxPooling1D(pool_size=3, strides=2, padding='same', name='pool_%d' % stage)(inputs)
+        return out
 
     # operates at character level
-    def create_model(self, sequence_length=1024, output_dim=16, num_of_conv_blocks=None, conv_filters=None):
+    def create_model(self, sequence_length=1024, output_dim=16, num_of_conv_blocks=None, conv_filters=None,
+                     pool_type='max', sorted=True, num_classes=5):
         if not num_of_conv_blocks:
             num_of_conv_blocks = [4, 4, 10, 10]
         if not conv_filters:
@@ -476,24 +499,58 @@ class VDCNN(Base_Model):
         inputs = Input(shape=(sequence_length,), name='inputs')
         # tensor generation of size (f_0, s)
         char_embedding_layer = Embedding(input_dim=sequence_length, output_dim=output_dim)(inputs)
-        convolution_layer = Conv1D(filters=64, kernel_size=3, padding='same', name='conv')(char_embedding_layer)
+        inp = Conv1D(filters=64, kernel_size=3, padding='same', name='conv')(char_embedding_layer)
         # stack of temporal convolutional blocks
+
         # 64
         for _ in range(num_of_conv_blocks[0]):
-            inp =
-            conv = self._conv_block(input=inp, filters=conv_filters[0])
-            pass
+            # use_bias, shortcut
+            inp = self._identity(inputs=inp, filters=conv_filters[0], kernel_size=3)
+            inp = self._conv_block(inputs=inp, filters=conv_filters[0], kernel_size=3,
+                                   pool_type=pool_type, sorted=sorted, stage=1)
 
         # 128
+        for _ in range(num_of_conv_blocks[1]):
+            inp = self._identity(inputs=inp, filters=conv_filters[1], kernel_size=3)
+            inp = self._conv_block(inputs=inp, filters=conv_filters[1], kernel_size=3,
+                                   pool_type=pool_type, sorted=sorted, stage=2)
 
         # 256
+        for _ in range(num_of_conv_blocks[2]):
+            inp = self._identity(inputs=inp, filters=conv_filters[2], kernel_size=3)
+            inp = self._conv_block(inputs=inp, filters=conv_filters[2], kernel_size=3,
+                                   pool_type=pool_type, sorted=sorted, stage=3)
 
         # 512
+        for _ in range(num_of_conv_blocks[2]):
+            inp = self._identity(inputs=inp, filters=conv_filters[3], kernel_size=3)
+            inp = self._conv_block(inputs=inp, filters=conv_filters[3], kernel_size=3,
+                                   pool_type=pool_type, sorted=sorted, stage=4)
 
         # maxPooling
-        maxPooling_layer = KMa
+        maxPooling_layer = KMaxPooling(k=8, sorted=True)(inp)
+        inp = Flatten()(maxPooling_layer)
+
+        # Dense
+        inp = Dense(units=2048, activation='relu')(inp)
+        inp = Dense(units=2048, activation='relu')(inp)
+        out = Dense(units=num_classes, activation='softmax')(inp)
 
         self.model = Model(inputs=inputs, outputs=out, nalme='VDCNN')
+        # TODO: check optimizer validity and params
+        print(self.model.summary())
+        self.model.compile(optimizer=SGD(lr=0.01, momentum=0.9), loss='categorical_crossentropy', metrics=['accuracy'])
+        save_model_to_json(self.model, "vdcnn")
 
-    def train_model(self):
-        raise NotImplementedError
+    def train_model(self, x_train, y_train, x_test, y_test, vocab, batch_size=64, num_epochs=100):
+        print('Training process has begun')
+        checkpoint = ModelCheckpoint('vdcnn_weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
+                                     verbose=1, save_best_only=True, mode='auto')
+        early_stop = EarlyStopping(monitor='val_acc', patience=5, mode='max')
+        plot_losses = PlotLosses()
+        callbacks_list = [checkpoint, early_stop, plot_losses]
+
+        vocab_inv = _get_vocabulary_inv(vocab)
+        # self._init_weights(domain_name, vocab_inv)
+        history = self.model.fit(x_train, y_train, batch_size=batch_size, epochs=num_epochs,
+                                 validation_data=(x_test, y_test), verbose=1, callbacks=callbacks_list)

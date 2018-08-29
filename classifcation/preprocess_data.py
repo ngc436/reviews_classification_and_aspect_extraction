@@ -153,3 +153,29 @@ def _bow_preparation(train_x, test_x, max_len):
     return enc.transform(train_x).toarray(), enc.transform()
 
     # TODO: search for similar words
+
+
+ALPHABET = 'abcdefghijklmnopqrstuvwxyz '
+
+
+# simplified variant without punctuation
+
+def get_sequence(dataset):
+    all_data = []
+    for row in dataset:
+        # data = np.ones(SEQUENE_MAX_LEN)*68
+        all_data.append(char2vec(row, SEQUENCE_MAX_LEN))
+    return np.array(all_data)
+
+
+def char2vec(text, max_len):
+    data = np.zeros(max_len)
+    char_dict = {}
+    for i, c in enumerate(ALPHABET):
+        char_dict[c] = i + 1
+    for i in range(0, len(text)):
+        if i > max_len:
+            return data
+        elif text[i] in char_dict:
+            data[i] = char_dict[text[i]]
+    return data
