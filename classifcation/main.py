@@ -17,7 +17,7 @@ from keras.datasets import imdb
 
 def main():
     NUM_CLASSES = 5
-    SEQUENCE_MAX_LEN = 1024
+    SEQUENCE_MAX_LEN = 512
 
     # TODO: load all data + implement cross-validation
 
@@ -74,7 +74,6 @@ def main():
     train_y = to_categorical(train_y, 5)
 
     ## for vdcnn
-
 
     # train_x = codecs.open('%s/%s/train.csv' % (IO_DIR, 'amazon'), mode='r', encoding='utf-8')
     # train_x = get_sequence(train_x)
@@ -144,13 +143,15 @@ def main():
     # nn_model.create_imdb_model()
     # nn_model.fit_imdb_model(x_train, y_train, x_test, y_test)
 
-
     train_x = sequence.pad_sequences(train_x, maxlen=SEQUENCE_MAX_LEN, padding='post', truncating='post')
+    print('Train data is ready')
 
     test_x = sequence.pad_sequences(test_x, maxlen=SEQUENCE_MAX_LEN, padding='post', truncating='post')
+    print('Test data is ready')
 
     nn_model = VDCNN()
     nn_model.create_model()
+    print('VDCNN model was successfully created')
     nn_model.train_model(train_x, train_y, test_x, test_y, vocab)
 
 

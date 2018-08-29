@@ -454,7 +454,7 @@ class VRNN(Base_Model):
         return
 
 
-# paper: Very Deep Convolutional Networks for Text Classification, 2017
+# paper: Very Deep Convolutional Networks for Text Classification, 2016
 # http://www.aclweb.org/anthology/E17-1104
 class VDCNN(Base_Model):
 
@@ -467,12 +467,12 @@ class VDCNN(Base_Model):
         batch_normalization_layer = BatchNormalization()(layer_1)
         activation = Activation('relu')(batch_normalization_layer)
         layer_2 = Conv1D(filters=filters, kernel_size=kernel_size, padding='same')(activation)
-        out = BatchNormalization(layer_2)
+        out = BatchNormalization()(layer_2)
         return Activation('relu')(out)
 
     def _conv_block(self, inputs, filters, pool_type, stage, sorted=True, kernel_size=3):
 
-        layer_1 = Conv1D(kernel_size=kernel_size, padding='same', )
+        layer_1 = Conv1D(filters=filters, kernel_size=kernel_size, padding='same')(inputs)
         batch_norm = BatchNormalization()(layer_1)
         activate = Activation('relu')(batch_norm)
         layer_2 = Conv1D(filters=filters, kernel_size=kernel_size, padding='same')(activate)
@@ -489,7 +489,7 @@ class VDCNN(Base_Model):
         return out
 
     # operates at character level
-    def create_model(self, sequence_length=1024, output_dim=16, num_of_conv_blocks=None, conv_filters=None,
+    def create_model(self, sequence_length=512, output_dim=16, num_of_conv_blocks=None, conv_filters=None,
                      pool_type='max', sorted=True, num_classes=5):
         if not num_of_conv_blocks:
             num_of_conv_blocks = [4, 4, 10, 10]
@@ -554,3 +554,18 @@ class VDCNN(Base_Model):
         # self._init_weights(domain_name, vocab_inv)
         history = self.model.fit(x_train, y_train, batch_size=batch_size, epochs=num_epochs,
                                  validation_data=(x_test, y_test), verbose=1, callbacks=callbacks_list)
+
+# Paper: Deep Pyramid Convolutional Neural Networks for Text Categorization, 2017
+class DPCNN(Base_Model):
+
+    def __init__(self):
+        self.model = None
+
+    def create_model(self, sequence_length):
+
+        inputs = Input(shape=(sequence_length,), name='inputs')
+
+        raise NotImplementedError
+
+
+
