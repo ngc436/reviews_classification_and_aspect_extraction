@@ -8,7 +8,7 @@ from classifcation.preprocess_data import *
 import os
 import pandas as pd
 from keras.preprocessing import sequence
-from classifcation.model import CNN_model, LSTM_model
+from classifcation.model import CNN_model, LSTM_model, VDCNN
 from numpy import genfromtxt
 from keras.utils import to_categorical
 from sklearn.model_selection import StratifiedKFold
@@ -16,6 +16,9 @@ from keras.datasets import imdb
 
 
 def main():
+    NUM_CLASSES = 5
+    SEQUENCE_MAX_LEN = 512
+
     # TODO: load all data + implement cross-validation
 
     # TODO: look at distributions of ratings in train/test sets
@@ -70,6 +73,16 @@ def main():
     train_y = np.asarray(val_list).mean(axis=1).astype(int) - 1
     train_y = to_categorical(train_y, 5)
 
+    ## for vdcnn
+
+    # train_x = codecs.open('%s/%s/train.csv' % (IO_DIR, 'amazon'), mode='r', encoding='utf-8')
+    # train_x = get_sequence(train_x)
+    # train_x = sequence.pad_sequences(train_x, maxlen=SEQUENCE_MAX_LEN, padding='post', truncating='post')
+    #
+    # test_x = codecs.open('%s/%s/test.csv' % (IO_DIR, 'amazon'), mode='r', encoding='utf-8')
+    # test_x = get_sequence(test_x)
+    # test_x = sequence.pad_sequences(test_x, maxlen=SEQUENCE_MAX_LEN, padding='post', truncating='post')
+
     # nn_model.create_model(vocab, max_len)
     # nn_model.model.get_layer('word_embedding').trainable = False
     #
@@ -114,9 +127,9 @@ def main():
 
     # create LSTM_CNN model
 
-    nn_model = LSTM_model()
-    nn_model.create_model_with_conv_layer(len(vocab), max_len)
-    nn_model.train_model(vocab, train_x, train_y, test_x, test_y, max_len)
+    # nn_model = LSTM_model()
+    # nn_model.create_model_with_conv_layer(len(vocab), max_len)
+    # nn_model.train_model(vocab, train_x, train_y, test_x, test_y, max_len)
 
     ##### test imdb
     # max_features = 10000
@@ -129,6 +142,17 @@ def main():
     # nn_model = CNN_model()
     # nn_model.create_imdb_model()
     # nn_model.fit_imdb_model(x_train, y_train, x_test, y_test)
+
+    train_x = sequence.pad_sequences(train_x, maxlen=SEQUENCE_MAX_LEN, padding='post', truncating='post')
+    print('Train data is ready')
+
+    test_x = sequence.pad_sequences(test_x, maxlen=SEQUENCE_MAX_LEN, padding='post', truncating='post')
+    print('Test data is ready')
+
+    nn_model = VDCNN()
+    nn_model.create_model()
+    print('VDCNN model was successfully created')
+    nn_model.train_model(train_x, train_y, test_x, test_y, vocab)
 
 
 if __name__ == "__main__":
