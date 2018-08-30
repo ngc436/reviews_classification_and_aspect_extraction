@@ -295,7 +295,7 @@ class CNN_model(Base_Model):
 
 class CNN_2D(Base_Model):
     """
-    Each sentence is represented as an image of shape (embedding_dim, sent_num_of_words)
+    Each sentence is represented as an image of shape (sent_num_of_words, embedding_dim)
     """
 
     def __init__(self):
@@ -303,9 +303,14 @@ class CNN_2D(Base_Model):
 
     def _reshape_data(self, data, labels, embedding_dim, w2v_model):
         # w2v_model
-        input = Input(shape=(embedding_dim, None, None))
+        # input = Input(shape=(embedding_dim, None, None))
+        raise NotImplementedError
 
-    def create_model(self, *args):
+    def create_model(self, max_len, emb_dim, word_index, embedding_matrix):
+        # np.zeros((5,), dtype=np.int) => array([0, 0, 0, 0, 0])
+        inputs = Input(shape=(max_len,), dtype='int32', name='reviews_input')
+        embedding_layer = Embedding(len(word_index) + 1, emb_dim, weights=[embedding_matrix],
+                                    input_length=max_len, trainable=False)
         raise NotImplementedError
 
 
@@ -558,6 +563,7 @@ class VDCNN(Base_Model):
         history = self.model.fit(x_train, y_train, batch_size=batch_size, epochs=num_epochs,
                                  validation_data=(x_test, y_test), verbose=1, callbacks=callbacks_list)
 
+
 # Paper: Deep Pyramid Convolutional Neural Networks for Text Categorization, 2017
 class DPCNN(Base_Model):
 
@@ -565,10 +571,6 @@ class DPCNN(Base_Model):
         self.model = None
 
     def create_model(self, sequence_length):
-
         inputs = Input(shape=(sequence_length,), name='inputs')
 
         raise NotImplementedError
-
-
-

@@ -47,6 +47,20 @@ def ready_model_train(model, sentences_with_unknown_words, dict_of_unknown=None)
     return model
 
 
+# numpy array of arrays (texts as images)
+def prepare_emb_input(w2v_dict, text, max_len, emb_dim=300):
+    list_of_np_embeddings = []
+    input_shape = (max_len, emb_dim)
+    for sentence in text:
+        tmp_arr = np.zeros(input_shape)
+        for ind, word in enumerate(sentence.split()):
+            tmp_arr[ind] = w2v_dict[word]
+        list_of_np_embeddings.append(tmp_arr)
+    return np.array(list_of_np_embeddings)
+
+# def get_sentences_with_unknown_words(model, ):
+
+
 # maxlen -
 
 class w2v_model:
@@ -71,6 +85,9 @@ class w2v_model:
     def model_from_file(self, domain_name):
         self.model = Word2Vec.load('%s/%s/w2v_embedding' % (IO_DIR, domain_name))
 
+    def pretrained_model_from_file(self,fname):
+        self.model = Word2Vec.load_word2vec_format('%s/%s' % (IO_DIR, fname), binary=True)
+
     # TODO: fix embedding dim
     def read_data(self, domain_name):
 
@@ -90,6 +107,9 @@ class w2v_model:
             return self.embeddings[word]
         except KeyError:
             return None
+
+    def create_embedding_matrix(self):
+        raise NotImplementedError
 
     def get_w2v_mean(self, text, size=300):
         vec = np.zeros(size).reshape((1, size))

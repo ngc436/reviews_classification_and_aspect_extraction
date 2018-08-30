@@ -57,21 +57,21 @@ def main():
 
     # nn_model = CNN_model()
     # # read_data outputs frequency vectors
-    vocab, train_x, test_x, max_len = read_data('amazon')
+    # vocab, train_x, test_x, max_len = read_data('amazon')
     #
     # # TODO: refactor this
     # converting to one-hot representation
-    val_list = []
-    for i in genfromtxt('data_dir/amazon/y_test.csv', delimiter=','):
-        val_list.append([int(i)])
-    test_y = np.asarray(val_list).mean(axis=1).astype(int) - 1
-    test_y = to_categorical(test_y, 5)
-
-    val_list = []
-    for i in genfromtxt('data_dir/amazon/y_train.csv', delimiter=','):
-        val_list.append([int(i)])
-    train_y = np.asarray(val_list).mean(axis=1).astype(int) - 1
-    train_y = to_categorical(train_y, 5)
+    # val_list = []
+    # for i in genfromtxt('data_dir/amazon/y_test.csv', delimiter=','):
+    #     val_list.append([int(i)])
+    # test_y = np.asarray(val_list).mean(axis=1).astype(int) - 1
+    # test_y = to_categorical(test_y, 5)
+    #
+    # val_list = []
+    # for i in genfromtxt('data_dir/amazon/y_train.csv', delimiter=','):
+    #     val_list.append([int(i)])
+    # train_y = np.asarray(val_list).mean(axis=1).astype(int) - 1
+    # train_y = to_categorical(train_y, 5)
 
     ## for vdcnn
 
@@ -104,13 +104,14 @@ def main():
     #
     # # train_x, test_x = prepare_input_sequences(train_x, test_x, type='w2v_mean')
     #
-    # train_x, test_x = prepare_input_sequences(train_x, test_x, max_len=max_len, type='freq_seq', max_num_of_words=100000)
-    #
-    # np.save('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'train_x_pad_100000'), train_x)
-    # np.save('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'test_x_pad_100000'), test_x)
+    # train_x, test_x = prepare_input_sequences(train_x, test_x, max_len=max_len, type='freq_seq',
+    #                                           max_num_of_words=200000)
 
-    train_x = np.load('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'train_x_pad'))
-    test_x = np.load('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'test_x_pad'))
+    # np.save('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'train_x_pad_200000'), train_x)
+    # np.save('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'test_x_pad_200000'), test_x)
+
+    # train_x = np.load('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'train_x_pad'))
+    # test_x = np.load('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'test_x_pad'))
 
     # cross validation section
     # skf = StratifiedKFold(indices, n_folds=n_folds, shuffle=True)
@@ -143,16 +144,24 @@ def main():
     # nn_model.create_imdb_model()
     # nn_model.fit_imdb_model(x_train, y_train, x_test, y_test)
 
-    train_x = sequence.pad_sequences(train_x, maxlen=SEQUENCE_MAX_LEN, padding='post', truncating='post')
-    print('Train data is ready')
+    # train_x = sequence.pad_sequences(train_x, maxlen=SEQUENCE_MAX_LEN, padding='post', truncating='post')
+    # print('Train data is ready')
+    #
+    # test_x = sequence.pad_sequences(test_x, maxlen=SEQUENCE_MAX_LEN, padding='post', truncating='post')
+    # print('Test data is ready')
+    #
+    # nn_model = VDCNN()
+    # nn_model.create_model()
+    # print('VDCNN model was successfully created')
+    # nn_model.train_model(train_x, train_y, test_x, test_y, vocab)
 
-    test_x = sequence.pad_sequences(test_x, maxlen=SEQUENCE_MAX_LEN, padding='post', truncating='post')
-    print('Test data is ready')
+    # TODO: create and save w2v embedding matices
 
-    nn_model = VDCNN()
-    nn_model.create_model()
-    print('VDCNN model was successfully created')
-    nn_model.train_model(train_x, train_y, test_x, test_y, vocab)
+
+    # checking word2vec
+    model = w2v_model()
+    model.pretrained_model_from_file('GoogleNews-vectors-negative300.bin')
+    print(model.model.wv['day'])
 
 
 if __name__ == "__main__":
