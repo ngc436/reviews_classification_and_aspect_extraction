@@ -22,6 +22,31 @@ class Sentences(object):
             yield line.split()
 
 
+# TODO: implement me
+def load_google_w2v(fname, vocab, text):
+    embeddings = {}
+    with open(fname, "rb") as f:
+        header = f.readline()
+        vocab_size, l_size = map(int, header.split())
+        bin_len = np.dtype('float32').itemsize * l_size
+        #
+        # for sentence in text:
+        #     if word in sentence:
+        #         if word in
+
+
+# use in case of words absence
+# returns model if the dict is not specified
+def ready_model_train(model, sentences_with_unknown_words, dict_of_unknown=None):
+    model.train(sentences_with_unknown_words)
+    if not dict_of_unknown:
+        embeddings = {}
+        for word in dict_of_unknown:
+            embeddings[word] = model.wv[word]
+        return embeddings
+    return model
+
+
 # maxlen -
 
 class w2v_model:

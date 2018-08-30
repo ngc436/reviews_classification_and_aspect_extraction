@@ -127,7 +127,8 @@ class KMaxPooling(Layer):
 
     def call(self, inputs):
         swapped_dim_inputs = tf.transpose(inputs, [0, 2, 1])
-        high_k = tf.nn.highest_k(swapped_dim_inputs, k=self.k, sorted=self.sorted)[0]
+
+        high_k = tf.nn.top_k(swapped_dim_inputs, k=self.k, sorted=self.sorted)[0]
 
         return tf.transpose(high_k, [0, 2, 1])
 
@@ -477,8 +478,10 @@ class VDCNN(Base_Model):
         activate = Activation('relu')(batch_norm)
         layer_2 = Conv1D(filters=filters, kernel_size=kernel_size, padding='same')(activate)
         inp = BatchNormalization()(layer_2)
+
         inp = Activation('relu')(inp)
         inp = self._dim_red(inp, pool_type=pool_type, sorted=sorted, stage=stage)
+
         inp = Conv1D(filters=2 * filters, kernel_size=1, padding='same', name='1_1_conv_%d' % stage)(inp)
         out = BatchNormalization(name='1_1_batch_normalization_%d' % stage)(inp)
         return out
