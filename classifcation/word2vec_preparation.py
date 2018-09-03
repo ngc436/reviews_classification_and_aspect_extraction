@@ -1,4 +1,4 @@
-from gensim.models import Word2Vec
+from gensim.models import Word2Vec, KeyedVectors
 import codecs
 import multiprocessing
 import operator
@@ -63,6 +63,25 @@ def prepare_emb_input(w2v_dict, text, max_len, emb_dim=300):
 
 # maxlen -
 
+def get_embeddings(vocab, w2v_model):
+    emb_dict = {}
+    undefined = []
+    for word in vocab:
+        if word in w2v_model.model.wv:
+            emb_dict[word] = w2v_model.model.wv[word]
+        else:
+            undefined.append(word)
+    return emb_dict, undefined
+
+def vectorize_revs(revs, w2v_model):
+    vectorized = []
+    for rev in revs:
+        words = rev.split()
+        vect = []
+        for word in words:
+            vect.append()
+
+
 class w2v_model:
 
     def __init__(self):
@@ -83,10 +102,10 @@ class w2v_model:
         print("model is saved: %s" % (target))
 
     def model_from_file(self, domain_name):
-        self.model = Word2Vec.load('%s/%s/w2v_embedding' % (IO_DIR, domain_name))
+        self.model = KeyedVectors.load_word2vec_format('%s/%s/w2v_embedding' % (IO_DIR, domain_name))
 
     def pretrained_model_from_file(self,fname):
-        self.model = Word2Vec.load_word2vec_format('%s/%s' % (IO_DIR, fname), binary=True)
+        self.model = KeyedVectors.load_word2vec_format('%s/%s' % (IO_DIR, fname), binary=True)
 
     # TODO: fix embedding dim
     def read_data(self, domain_name):

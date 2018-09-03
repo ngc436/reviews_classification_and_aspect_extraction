@@ -111,3 +111,22 @@ class PlotLosses(keras.callbacks.Callback):
         plt.plot(self.x, self.val_losses, label='val_loss')
         plt.legend()
         plt.show()
+
+class PlotAccuracy(keras.callbacks.Callback):
+    def on_train_begin(self, logs=None):
+        self.i = 0
+        self.x = []
+        self.acc = []
+        self.fig = plt.figure()
+        self.logs = []
+
+    def on_epoch_end(self, epoch, logs={}):
+        self.logs.append(logs)
+        self.x.append(self.i)
+        #
+        self.acc.append(logs.get('acc'))
+        self.i += 1
+
+        plt.plot(self.x, self.acc, label='accuracy')
+        plt.legend()
+        plt.show()

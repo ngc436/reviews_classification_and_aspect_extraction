@@ -1,18 +1,20 @@
 # input file
 
 # create embeddings if don't exist or pass pretrained files
-from classifcation.word2vec_preparation import w2v_model
+from classifcation.word2vec_preparation import *
 from classifcation.utils import *
 from sklearn.model_selection import train_test_split
 from classifcation.preprocess_data import *
 import os
 import pandas as pd
-from keras.preprocessing import sequence
 from classifcation.model import CNN_model, LSTM_model, VDCNN
 from numpy import genfromtxt
-from keras.utils import to_categorical
 from sklearn.model_selection import StratifiedKFold
-from keras.datasets import imdb
+# from keras.preprocessing import sequence
+from keras.utils import to_categorical
+
+
+# from keras.datasets import imdb
 
 
 def main():
@@ -128,9 +130,47 @@ def main():
 
     # create LSTM_CNN model
 
-    # nn_model = LSTM_model()
-    # nn_model.create_model_with_conv_layer(len(vocab), max_len)
-    # nn_model.train_model(vocab, train_x, train_y, test_x, test_y, max_len)
+    vocab, train_x, test_x, max_len = read_data('amazon')
+    train_x = np.load('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'train_x_pad'))
+    test_x = np.load('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'test_x_pad'))
+
+    val_list = []
+    for i in genfromtxt('data_dir/amazon/y_test.csv', delimiter=','):
+        val_list.append([int(i)])
+    test_y = np.asarray(val_list).mean(axis=1).astype(int) - 1
+    test_y = to_categorical(test_y, 5)
+
+    val_list = []
+    for i in genfromtxt('data_dir/amazon/y_train.csv', delimiter=','):
+        val_list.append([int(i)])
+    train_y = np.asarray(val_list).mean(axis=1).astype(int) - 1
+    train_y = to_categorical(train_y, 5)
+
+    nn_model = LSTM_model()
+    nn_model.create_model_with_conv_layer(len(vocab), max_len)
+    nn_model.train_model(vocab, train_x, train_y, test_x, test_y, max_len)
+
+    # # one more CNN try
+    # vocab, train_x, test_x, max_len = read_data('amazon')
+    #
+    # val_list = []
+    # for i in genfromtxt('data_dir/amazon/y_test.csv', delimiter=','):
+    #     val_list.append([int(i)])
+    # test_y = np.asarray(val_list).mean(axis=1).astype(int) - 1
+    # test_y = to_categorical(test_y, 5)
+    #
+    # val_list = []
+    # for i in genfromtxt('data_dir/amazon/y_train.csv', delimiter=','):
+    #     val_list.append([int(i)])
+    # train_y = np.asarray(val_list).mean(axis=1).astype(int) - 1
+    # train_y = to_categorical(train_y, 5)
+    #
+    # train_x = np.load('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'train_x_pad'))
+    # test_x = np.load('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'test_x_pad'))
+    # nn_model = CNN_model()
+    # nn_model.create_simple_model(len(vocab), max_len, 300)
+    # nn_model.simple_train('amazon', vocab, train_x, train_y, test_x,
+    #                       test_y, max_len, 64, num_epochs=50)
 
     ##### test imdb
     # max_features = 10000
@@ -157,11 +197,22 @@ def main():
 
     # TODO: create and save w2v embedding matices
 
+    # # initializing word2vec
+    # model = w2v_model()
+    # model.pretrained_model_from_file('GoogleNews-vectors-negative300.bin')
+    # # initializing vocabulary
+    # vocab, train_x, test_x, max_len = read_data('amazon')
+    # words_embeddings, undefined_words = get_embeddings(vocab, model)
+    # print(len(undefined_words))
 
-    # checking word2vec
-    model = w2v_model()
-    model.pretrained_model_from_file('GoogleNews-vectors-negative300.bin')
-    print(model.model.wv['day'])
+    # VAE
+    # 1) find absent words
+    # 2) continue to train ready model with new unknown words
+    # 3) create input
+
+    vocab, train_x, test_x, max_len = read_data('amazon')
+
+
 
 
 if __name__ == "__main__":

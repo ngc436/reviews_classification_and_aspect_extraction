@@ -1,22 +1,35 @@
 # BUG: occasionally causes TypeError in __del__: 'NoneType' object is not callable
+import tensorflow as tf
+
+config = tf.ConfigProto()
+config.gpu_options.visible_device_list = "0"
+config.gpu_options.per_process_gpu_memory_fraction = 0.6
+config.allow_soft_placement = True
+config.gpu_options.allow_growth = True
+session = tf.Session(config=config)
+
+from keras.backend.tensorflow_backend import set_session
+
+set_session(session)
 
 from keras.layers import Input, Dense, \
     Embedding, Conv2D, MaxPool2D, Reshape, \
     Flatten, Dropout, Concatenate, Convolution1D, MaxPooling1D, \
     LSTM, RepeatVector, Activation, Conv1D, GlobalMaxPooling1D, \
-    BatchNormalization, Add
+    BatchNormalization, Merge, Lambda
 from keras.engine import Layer, InputSpec
 from keras.optimizers import Adam, SGD
 from keras.models import Model, Sequential
 import logging
 from keras import losses
+from keras import metrics
 from keras import backend as k
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping, TensorBoard
 from tqdm import tqdm
 import os
 import numpy as np
 from keras.utils import Sequence, to_categorical
-import skopt
+# import skopt
 import tensorflow as tf
 from tqdm import tqdm
 import time
@@ -26,18 +39,11 @@ from sklearn.model_selection import StratifiedKFold
 from gensim.models import Word2Vec
 from classifcation.vis_tools.vis import *
 
-import tensorflow as tf
-
 IO_DIR = 'data_dir'
 
-# memory configuration
+# configuration
 
-config = tf.ConfigProto()
-config.gpu_options.allow_growth = True
-config.gpu_options.per_process_gpu_memory_fraction = 0.8
-k.tensorflow_backend.set_session(tf.Session(config=config))
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s % %(levelname)s %(message)s')
+
 # TODO: add logging info messages
 logger = logging.getLogger(__name__)
 
@@ -91,7 +97,7 @@ def max_margin_loss(y_true, y_pred):
 
 def get_callbacks(name_weights, patience_lr):
     checkpoint_save = ModelCheckpoint(name_weights, save_best_only=True, monitor='val_loss', mode='min')
-    reduce_lr_loss = ReduceLROnPlateau(montor='loss', factor=0.1, patience=patience_lr,
+    reduce_lr_loss = ReduceLROnPlateau(monitor='loss', factor=0.1, patience=patience_lr,
                                        verbose=1, epsilon=1e-4, mode='min')
 
 
@@ -178,6 +184,33 @@ class CNN_model(Base_Model):
         # TODO: remove hardcore
         model_output = Dense(5, activation="sigmoid")(output)
         self.model = Model(inputs=inputs, outputs=model_output)
+
+    # Convolutional Neural Networks for Sentence Classification
+    def create_simple_model(self, vocab_size, max_len, emb_dim,
+                            filters=None, filter_size=100):
+        if not filters:
+            filters = [3, 5, 7]
+        input_shape = (max_len,)
+        inputs = Input(shape=input_shape, dtype='int32', name='inputs')
+        word_emb = Embedding(vocab_size, emb_dim, input_length=max_len, name='embeddings')(inputs)
+        dropout = Dropout(0., name='dropout_emb')(word_emb)
+        conv_list = []
+        for filter in filters:
+            # check here
+            conv = Convolution1D(filters=filter_size, kernel_size=filter, padding="valid",
+                                 activation="relu", name='conv_' + str(filter))(dropout)
+            mp = MaxPooling1D(pool_size=max_len - filter + 1, name='maxpool_' + str(filter))(conv)
+            flat = Flatten()(mp)
+            conv_list.append(flat)
+        # flatten = Concatenate()(conv_list) if len(conv_list) > 1 else conv_list[0]
+        merged = Concatenate()(conv_list)
+        dropout_2 = Dropout(0., name='dropout')(merged)
+        model_output = Dense(5, activation='sigmoid')(dropout_2)
+        self.model = Model(inputs=inputs, outputs=model_output)
+        print(self.model.summary())
+
+    def train_simple_model(self):
+        raise NotImplementedError
 
     def create_imdb_model(self):
         max_features = 10000
@@ -426,15 +459,85 @@ class LSTM_AE(Base_Model):
         encoder = Model(inputs, encoded)
 
 
+class CustomVariationalLayer(Layer):
+    def __init__(self, **kwargs):
+        self.is_placeholder = True
+
+        super(CustomVariationalLayer, self).__init__(**kwargs)
+
+    def vae_loss(self, x, x_decoded_mean, original_dim, z_mean, z_log_var):
+        xent_loss = original_dim * metrics.binary_crossentropy(x, x_decoded_mean)
+        kl_loss = -0.5 * k.sum(1 + z_log_var - k.square(z_mean) - k.exp(z_log_var), axis=-1)
+        return k.mean(xent_loss + kl_loss)
+
+    def call(self, inputs):
+        x = inputs[0]
+        x_decoded_mean = inputs[1]
+        loss = self.vae_loss(x, x_decoded_mean)
+        self.add_loss(loss, inputs=inputs)
+        return k.ones_like(x)
+
+
+# example from keras docs
 class VAE(Base_Model):
 
     def __init__(self):
-        encoder = None
-        decoder = None
-        model = None
+        self.encoder = None
+        self.generator = None
+        self.model = None
+        self.batch_size = None
+        self.latent_dim = None
 
-    def create_model(self, input_shape):
-        inputs = Input(input_shape)
+    # paper: Generating Sentences from a Continuous Space
+    def create_simple_model(self, batch_size=500, original_dim=3000, intermediate_dim=1200,
+                            latent_dim=1000):
+        self.batch_size = batch_size
+        self.latent_dim = latent_dim
+        x = Input(batch_shape=(batch_size, original_dim))
+        h = Dense(intermediate_dim, activation='relu')(x)
+        z_mean = Dense(latent_dim)(h)
+        z_log_var = Dense(latent_dim)(h)
+        z = Lambda(self.sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
+        decoder_h = Dense(intermediate_dim, activation='relu')
+        decoder_mean = Dense(original_dim, activation='relu')
+        h_decoded = decoder_h(z)
+        x_decoded_mean = decoder_mean(h_decoded)
+        loss_layer = CustomVariationalLayer()([x, x_decoded_mean])
+        vae = Model(x, [loss_layer])
+        vae.compile(optimizer='rmsprop', loss=[self.loss])
+
+    @staticmethod
+    def loss(y_true, y_pred):
+        return k.zeros_like(y_pred)
+
+    def sampling(self, z_mean, z_log_var):
+        z_mean = z_mean
+        eps = k.random_normal(shape=(self.batch_size, self.latent_dim), mean=0,
+                              stddev=1.0)
+        return z_mean + k.exp(z_log_var / 2) * eps
+
+    def train_simple_model(self, x_train, x_test, batch_size=500, num_epochs=200):
+        print('Training process has begun')
+        checkpoint = ModelCheckpoint('vdcnn_weights.{epoch:03d}-{val_acc:.4f}.hdf5', monitor='val_acc',
+                                     verbose=1, save_best_only=True, mode='auto')
+        early_stop = EarlyStopping(monitor='val_acc', patience=5, mode='max')
+        plot_losses = PlotLosses()
+        plot_accuracy = PlotAccuracy()
+        callbacks_list = [checkpoint, early_stop, plot_losses, plot_accuracy]
+
+        # self._init_weights(domain_name, vocab_inv)
+        history = self.model.fit(x_train, x_train, batch_size=batch_size, epochs=num_epochs,
+                                 validation_data=(x_test, x_test), verbose=1, callbacks=callbacks_list)
+
+
+    def create_model(self, emb_dim, intermediate_dim=512, batch_size=128,
+                     latent_dim=2, epochs=50):
+        original_dim = emb_dim * emb_dim
+        input_shape = (original_dim,)
+        inputs = Input(shape=input_shape, name='emb_input')
+        x = Dense(intermediate_dim, activation='relu')(inputs)
+        z_mean = Dense(latent_dim, name='z_mean')(x)
+        z_log_var = Dense(latent_dim, name='z_log_var')(x)
 
     # reparametrization trick
     def sampling(self, z_mean, z_log_var):
@@ -574,3 +677,22 @@ class DPCNN(Base_Model):
         inputs = Input(shape=(sequence_length,), name='inputs')
 
         raise NotImplementedError
+
+
+# Paper: Variational autoencoders for collaborative filtering
+# Is based on the history of clicks
+class MultiDAE(Base_Model):
+
+    def __init__(self):
+        self.model = None
+
+    def create_model(self):
+        # input =
+        raise NotImplementedError
+
+
+# Collaborative Variational Autoencoder for Recommender Systems
+class CVAE(Base_Model):
+
+    def __init__(self):
+        self.model = None
