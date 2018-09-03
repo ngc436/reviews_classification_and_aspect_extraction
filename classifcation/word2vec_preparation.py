@@ -1,4 +1,4 @@
-from gensim.models import Word2Vec
+from gensim.models import Word2Vec, KeyedVectors
 import codecs
 import multiprocessing
 import operator
@@ -22,7 +22,65 @@ class Sentences(object):
             yield line.split()
 
 
+# TODO: implement me
+def load_google_w2v(fname, vocab, text):
+    embeddings = {}
+    with open(fname, "rb") as f:
+        header = f.readline()
+        vocab_size, l_size = map(int, header.split())
+        bin_len = np.dtype('float32').itemsize * l_size
+        #
+        # for sentence in text:
+        #     if word in sentence:
+        #         if word in
+
+
+# use in case of words absence
+# returns model if the dict is not specified
+def ready_model_train(model, sentences_with_unknown_words, dict_of_unknown=None):
+    model.train(sentences_with_unknown_words)
+    if not dict_of_unknown:
+        embeddings = {}
+        for word in dict_of_unknown:
+            embeddings[word] = model.wv[word]
+        return embeddings
+    return model
+
+
+# numpy array of arrays (texts as images)
+def prepare_emb_input(w2v_dict, text, max_len, emb_dim=300):
+    list_of_np_embeddings = []
+    input_shape = (max_len, emb_dim)
+    for sentence in text:
+        tmp_arr = np.zeros(input_shape)
+        for ind, word in enumerate(sentence.split()):
+            tmp_arr[ind] = w2v_dict[word]
+        list_of_np_embeddings.append(tmp_arr)
+    return np.array(list_of_np_embeddings)
+
+# def get_sentences_with_unknown_words(model, ):
+
+
 # maxlen -
+
+def get_embeddings(vocab, w2v_model):
+    emb_dict = {}
+    undefined = []
+    for word in vocab:
+        if word in w2v_model.model.wv:
+            emb_dict[word] = w2v_model.model.wv[word]
+        else:
+            undefined.append(word)
+    return emb_dict, undefined
+
+def vectorize_revs(revs, w2v_model):
+    vectorized = []
+    for rev in revs:
+        words = rev.split()
+        vect = []
+        for word in words:
+            vect.append()
+
 
 class w2v_model:
 
@@ -44,7 +102,10 @@ class w2v_model:
         print("model is saved: %s" % (target))
 
     def model_from_file(self, domain_name):
-        self.model = Word2Vec.load('%s/%s/w2v_embedding' % (IO_DIR, domain_name))
+        self.model = KeyedVectors.load_word2vec_format('%s/%s/w2v_embedding' % (IO_DIR, domain_name))
+
+    def pretrained_model_from_file(self,fname):
+        self.model = KeyedVectors.load_word2vec_format('%s/%s' % (IO_DIR, fname), binary=True)
 
     # TODO: fix embedding dim
     def read_data(self, domain_name):
@@ -65,6 +126,9 @@ class w2v_model:
             return self.embeddings[word]
         except KeyError:
             return None
+
+    def create_embedding_matrix(self):
+        raise NotImplementedError
 
     def get_w2v_mean(self, text, size=300):
         vec = np.zeros(size).reshape((1, size))

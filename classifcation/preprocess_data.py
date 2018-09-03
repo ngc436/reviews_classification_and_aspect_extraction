@@ -160,11 +160,11 @@ ALPHABET = 'abcdefghijklmnopqrstuvwxyz '
 
 # simplified variant without punctuation
 
-def get_sequence(dataset):
+def get_sequence(dataset, max_len):
     all_data = []
     for row in dataset:
         # data = np.ones(SEQUENE_MAX_LEN)*68
-        all_data.append(char2vec(row, SEQUENCE_MAX_LEN))
+        all_data.append(char2vec(row, max_len))
     return np.array(all_data)
 
 

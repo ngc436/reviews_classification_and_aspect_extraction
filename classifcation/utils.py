@@ -1,6 +1,7 @@
 import codecs
 import operator
 from sklearn.model_selection import train_test_split
+import numpy as np
 
 IO_DIR = 'data_dir'
 
@@ -105,3 +106,12 @@ def train_test_split(data, labels):
     X_train, X_test, y_train, y_test = train_test_split(data,
                                                         labels, test_size=0.2)
     return
+
+# TODO: implement me as well
+def batch_iter(data, batch_size, num_epoch):
+    data_size = len(data)
+    num_batches_per_epoch = int(len(data) / batch_size) + 1
+    for epoch in range(num_epoch):
+        shuffle_indices = np.random.permutation(np.arange(data_size))
+        shuffled_data = data[shuffle_indices]
+        #for batch_num
