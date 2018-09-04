@@ -16,7 +16,7 @@ from keras.layers import Input, Dense, \
     Embedding, Conv2D, MaxPool2D, Reshape, \
     Flatten, Dropout, Concatenate, Convolution1D, MaxPooling1D, \
     LSTM, RepeatVector, Activation, Conv1D, GlobalMaxPooling1D, \
-    BatchNormalization, Merge, Lambda
+    BatchNormalization, Lambda
 from keras.engine import Layer, InputSpec
 from keras.optimizers import Adam, SGD
 from keras.models import Model, Sequential
@@ -473,7 +473,7 @@ class CustomVariationalLayer(Layer):
     def call(self, inputs):
         x = inputs[0]
         x_decoded_mean = inputs[1]
-        loss = self.vae_loss(x, x_decoded_mean)
+        loss = self.vae_loss(x, x_decoded_mean, inputs[2], inputs[3], inputs[4])
         self.add_loss(loss, inputs=inputs)
         return k.ones_like(x)
 
@@ -497,7 +497,7 @@ class VAE(Base_Model):
         h = Dense(intermediate_dim, activation='relu')(x)
         z_mean = Dense(latent_dim)(h)
         z_log_var = Dense(latent_dim)(h)
-        z = Lambda(self.sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
+        z = Lambda(self.sampling, output_shape=(latent_dim,))([z_mean, z_log_var, original_dim, z_mean, z_log_var])
         decoder_h = Dense(intermediate_dim, activation='relu')
         decoder_mean = Dense(original_dim, activation='relu')
         h_decoded = decoder_h(z)
