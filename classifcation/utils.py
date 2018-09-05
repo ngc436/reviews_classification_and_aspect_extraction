@@ -5,6 +5,7 @@ import numpy as np
 
 IO_DIR = 'data_dir'
 
+# TODO: implement dev/train/test split
 
 def vocab_creation(domain_name, max_len=0, vocab_size=0):
     source = None

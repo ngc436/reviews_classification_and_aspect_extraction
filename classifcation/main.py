@@ -217,19 +217,20 @@ def main():
     model.pretrained_model_from_file('GoogleNews-vectors-negative300.bin')
 
     # TODO: implement padding
-    def return_embeddings(tokens_len=10, set_name='train'):
+    def return_embeddings(tokens_len=20, set_name='train'):
         data_concat = []
         tokens = vectorize_revs(model, set_name=set_name)
-        # example: take only len 10
-        data = [x for x in tokens if len(x) == 20]
+        # example: take only len 20
+        data = [x for x in tokens if len(x) == tokens_len]
         for x in data:
             data_concat.append(list(itertools.chain.from_iterable(x)))
         data_array = np.array(data_concat)
-        return np.random.shuffle(data_array)
+        np.random.shuffle(data_array)
+        return data_array
 
     train = return_embeddings()
     test = return_embeddings(set_name='test')
-
+    print(test)
 
     vae = VAE()
     vae.create_simple_model()
