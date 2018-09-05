@@ -8,6 +8,7 @@ from plotly.plotly import image
 import jupyterlab
 import plotly.plotly as py
 import os
+
 # getplotlyoffline('http://cdn.plot.ly/plotly-latest.min.js')
 
 # import altair as alt
@@ -50,7 +51,6 @@ def plot_distributions(train, test, title='Rating distribution in Amazon dataset
 
 
 def plot_len_distribution(column, plot_title):
-
     plt.hist(column.values.tolist(), 100)
     plt.title(plot_title)
     plt.xlabel('Length of review')
@@ -111,6 +111,7 @@ class PlotLosses(keras.callbacks.Callback):
         plt.plot(self.x, self.val_losses, label='val_loss')
         plt.legend()
         plt.show()
+
 
 class PlotAccuracy(keras.callbacks.Callback):
     def on_train_begin(self, logs=None):

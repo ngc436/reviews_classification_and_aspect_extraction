@@ -5,9 +5,10 @@ from classifcation.word2vec_preparation import *
 from classifcation.utils import *
 from sklearn.model_selection import train_test_split
 from classifcation.preprocess_data import *
+import itertools
 import os
 import pandas as pd
-from classifcation.model import CNN_model, LSTM_model, VDCNN
+from classifcation.model import CNN_model, LSTM_model, VDCNN, VAE
 from numpy import genfromtxt
 from sklearn.model_selection import StratifiedKFold
 # from keras.preprocessing import sequence
@@ -130,25 +131,25 @@ def main():
 
     # create LSTM_CNN model
 
-    vocab, train_x, test_x, max_len = read_data('amazon')
-    train_x = np.load('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'train_x_pad'))
-    test_x = np.load('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'test_x_pad'))
-
-    val_list = []
-    for i in genfromtxt('data_dir/amazon/y_test.csv', delimiter=','):
-        val_list.append([int(i)])
-    test_y = np.asarray(val_list).mean(axis=1).astype(int) - 1
-    test_y = to_categorical(test_y, 5)
-
-    val_list = []
-    for i in genfromtxt('data_dir/amazon/y_train.csv', delimiter=','):
-        val_list.append([int(i)])
-    train_y = np.asarray(val_list).mean(axis=1).astype(int) - 1
-    train_y = to_categorical(train_y, 5)
-
-    nn_model = LSTM_model()
-    nn_model.create_model_with_conv_layer(len(vocab), max_len)
-    nn_model.train_model(vocab, train_x, train_y, test_x, test_y, max_len)
+    # vocab, train_x, test_x, max_len = read_data('amazon')
+    # train_x = np.load('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'train_x_pad'))
+    # test_x = np.load('%s/%s/%s.npy' % (IO_DIR, 'amazon', 'test_x_pad'))
+    #
+    # val_list = []
+    # for i in genfromtxt('data_dir/amazon/y_test.csv', delimiter=','):
+    #     val_list.append([int(i)])
+    # test_y = np.asarray(val_list).mean(axis=1).astype(int) - 1
+    # test_y = to_categorical(test_y, 5)
+    #
+    # val_list = []
+    # for i in genfromtxt('data_dir/amazon/y_train.csv', delimiter=','):
+    #     val_list.append([int(i)])
+    # train_y = np.asarray(val_list).mean(axis=1).astype(int) - 1
+    # train_y = to_categorical(train_y, 5)
+    #
+    # nn_model = LSTM_model()
+    # nn_model.create_model_with_conv_layer(len(vocab), max_len)
+    # nn_model.train_model(vocab, train_x, train_y, test_x, test_y, max_len)
 
     # # one more CNN try
     # vocab, train_x, test_x, max_len = read_data('amazon')
@@ -210,10 +211,38 @@ def main():
     # 2) continue to train ready model with new unknown words
     # 3) create input
 
-    vocab, train_x, test_x, max_len = read_data('amazon')
+    # vocab, train_x, test_x, max_len = read_data('amazon') # encodes to numerical representation
 
+    model = w2v_model()
+    model.pretrained_model_from_file('GoogleNews-vectors-negative300.bin')
 
+    # TODO: implement padding
+    def return_embeddings(tokens_len=20, set_name='train'):
+        data_concat = []
+        tokens = vectorize_revs(model, set_name=set_name)
+        # example: take only len 20
+        data = [x for x in tokens if len(x) == tokens_len]
+        for x in data:
+            data_concat.append(list(itertools.chain.from_iterable(x)))
+        data_array = np.array(data_concat)
+        np.random.shuffle(data_array)
+        return data_array
 
+    train = return_embeddings()
+    test = return_embeddings(set_name='test')
+    print(test)
+
+    vae = VAE()
+    vae.create_simple_model()
+    vae.train_simple_model(train, test)
+
+    # result = select_input_sentences('amazon', 'train', model)
+    # print(len(result))
+    # print(result[-1])
+    # print(result[-2])
+    # write to file
+    # with open('%s/%s/%s.csv' % (IO_DIR, domain_name, set_name), 'w') as f:
+    #     for sent
 
 if __name__ == "__main__":
     main()

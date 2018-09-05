@@ -3,7 +3,7 @@ import tensorflow as tf
 
 config = tf.ConfigProto()
 config.gpu_options.visible_device_list = "0"
-config.gpu_options.per_process_gpu_memory_fraction = 0.6
+config.gpu_options.per_process_gpu_memory_fraction = 0.7
 config.allow_soft_placement = True
 config.gpu_options.allow_growth = True
 session = tf.Session(config=config)
@@ -16,7 +16,7 @@ from keras.layers import Input, Dense, \
     Embedding, Conv2D, MaxPool2D, Reshape, \
     Flatten, Dropout, Concatenate, Convolution1D, MaxPooling1D, \
     LSTM, RepeatVector, Activation, Conv1D, GlobalMaxPooling1D, \
-    BatchNormalization, Merge, Lambda
+    BatchNormalization, Lambda
 from keras.engine import Layer, InputSpec
 from keras.optimizers import Adam, SGD
 from keras.models import Model, Sequential
@@ -460,14 +460,16 @@ class LSTM_AE(Base_Model):
 
 
 class CustomVariationalLayer(Layer):
-    def __init__(self, **kwargs):
+    def __init__(self, z_mean, z_log_var, **kwargs):
         self.is_placeholder = True
+        self.z_mean = z_mean
+        self.z_log_var = z_log_var
 
         super(CustomVariationalLayer, self).__init__(**kwargs)
 
-    def vae_loss(self, x, x_decoded_mean, original_dim, z_mean, z_log_var):
+    def vae_loss(self, x, x_decoded_mean, original_dim=3000, latent_dim=1000):
         xent_loss = original_dim * metrics.binary_crossentropy(x, x_decoded_mean)
-        kl_loss = -0.5 * k.sum(1 + z_log_var - k.square(z_mean) - k.exp(z_log_var), axis=-1)
+        kl_loss = -0.5 * k.sum(1 + self.z_log_var - k.square(self.z_mean) - k.exp(self.z_log_var), axis=-1)
         return k.mean(xent_loss + kl_loss)
 
     def call(self, inputs):
@@ -502,17 +504,20 @@ class VAE(Base_Model):
         decoder_mean = Dense(original_dim, activation='relu')
         h_decoded = decoder_h(z)
         x_decoded_mean = decoder_mean(h_decoded)
-        loss_layer = CustomVariationalLayer()([x, x_decoded_mean])
+        loss_layer = CustomVariationalLayer(z_mean=z_mean,z_log_var=z_log_var)([x, x_decoded_mean])
         vae = Model(x, [loss_layer])
         vae.compile(optimizer='rmsprop', loss=[self.loss])
+        self.model = vae
 
     @staticmethod
     def loss(y_true, y_pred):
         return k.zeros_like(y_pred)
 
-    def sampling(self, z_mean, z_log_var):
-        z_mean = z_mean
-        eps = k.random_normal(shape=(self.batch_size, self.latent_dim), mean=0,
+    # dims
+    @staticmethod
+    def sampling(args):
+        z_mean, z_log_var = args
+        eps = k.random_normal(shape=(500, 1000), mean=0,
                               stddev=1.0)
         return z_mean + k.exp(z_log_var / 2) * eps
 
@@ -526,9 +531,8 @@ class VAE(Base_Model):
         callbacks_list = [checkpoint, early_stop, plot_losses, plot_accuracy]
 
         # self._init_weights(domain_name, vocab_inv)
-        history = self.model.fit(x_train, x_train, batch_size=batch_size, epochs=num_epochs,
+        history = self.model.fit(x_train, x_train, shuffle=True, batch_size=batch_size, epochs=num_epochs,
                                  validation_data=(x_test, x_test), verbose=1, callbacks=callbacks_list)
-
 
     def create_model(self, emb_dim, intermediate_dim=512, batch_size=128,
                      latent_dim=2, epochs=50):
@@ -540,11 +544,11 @@ class VAE(Base_Model):
         z_log_var = Dense(latent_dim, name='z_log_var')(x)
 
     # reparametrization trick
-    def sampling(self, z_mean, z_log_var):
-        batch = k.shape(z_mean)[0]
-        dim = k.int_shape(z_mean)[1]
-        eps = k.random_normal(shape=(batch, dim))
-        return z_mean + k.exp(0.5 * z_log_var) * eps
+    # def sampling(self, z_mean, z_log_var):
+    #     batch = k.shape(z_mean)[0]
+    #     dim = k.int_shape(z_mean)[1]
+    #     eps = k.random_normal(shape=(batch, dim))
+    #     return z_mean + k.exp(0.5 * z_log_var) * eps
 
 
 class VRNN(Base_Model):
